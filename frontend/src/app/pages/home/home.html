@@ -1,0 +1,195 @@
+<div class="home-page">
+  <!-- Top Bar -->
+  <div class="top-bar">
+    <div class="top-bar-inner">
+      <span class="top-bar-text">Regulatory Compliance & Reporting Management Platform</span>
+      <div class="top-bar-links">
+        <a href="#">About Us</a>
+        <a href="#">Contact</a>
+        <a href="#">Help</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Navbar -->
+  <nav class="navbar" id="home-nav">
+    <div class="navbar-inner">
+      <a routerLink="/" class="navbar-brand" id="nav-brand">
+        <span class="material-icons brand-icon">assessment</span>
+        <span class="brand-text">RegReportX</span>
+      </a>
+      <div class="navbar-menu">
+        <a href="#features" class="nav-link">Features</a>
+        <a href="#about" class="nav-link">About</a>
+        <a href="#contact" class="nav-link">Contact</a>
+      </div>
+      <div class="navbar-actions">
+        @if (authService.isAuthenticated()) {
+          <button (click)="goToDashboard()" class="btn-login" style="background: var(--primary); padding-right: 1.5rem;" id="nav-admin-link">
+            <span class="material-icons">dashboard</span>
+            Dashboard
+          </button>
+          <button (click)="logout()" class="btn-login" style="background: transparent; color: var(--text-secondary); border: 1px solid var(--border);" title="Clear session and logout">
+            <span class="material-icons">logout</span>
+          </button>
+        } @else {
+          <a routerLink="/login" class="btn-login" id="nav-login-link">
+            LOGIN
+            <span class="material-icons">arrow_drop_down</span>
+          </a>
+        }
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="hero" id="hero-section">
+    <div class="hero-content">
+      <div class="hero-text">
+        <h1>Experience<br>Regulatory Reporting<br><strong>Differently</strong></h1>
+        <p class="hero-desc">
+          Introducing the RegReportX Platform for<br>
+          Template Management | Report Approval | Analytics
+        </p>
+        <div class="hero-btns">
+          @if (authService.isAuthenticated()) {
+            <button (click)="goToDashboard()" class="hero-btn" id="hero-admin-btn" style="border: none; font-family: inherit; font-size: inherit; cursor: pointer;">
+              Dashboard
+              <span class="material-icons">chevron_right</span>
+            </button>
+          } @else {
+            <a routerLink="/login" class="hero-btn" id="hero-login-btn">
+              Get Started
+              <span class="material-icons">chevron_right</span>
+            </a>
+          }
+          <a href="#features" class="hero-btn hero-btn-outline" id="hero-learn-btn">
+            Learn More
+            <span class="material-icons">chevron_right</span>
+          </a>
+        </div>
+      </div>
+      <div class="hero-card">
+        <div class="hero-card-tabs">
+          <span class="hero-card-tab active">Templates</span>
+          <span class="hero-card-tab">Reports</span>
+        </div>
+        <div class="hero-card-body">
+          <div class="hero-card-row">
+            <div class="hero-select">
+              <label>Select Module</label>
+              <select disabled>
+                <option>Template Management</option>
+              </select>
+            </div>
+            <div class="hero-select">
+              <label>Select Action</label>
+              <select disabled>
+                <option>View All</option>
+              </select>
+            </div>
+          </div>
+          <div class="hero-card-actions">
+            <a routerLink="/login" class="card-btn-primary">Access Now</a>
+            <a href="#features" class="card-btn-link">Know More</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Search Bar -->
+  <div class="search-section">
+    <div class="search-bar">
+      <span class="material-icons search-icon">search</span>
+      <span class="search-label">RegReportX</span>
+      <span class="search-divider"></span>
+      <span class="search-placeholder">What are you looking for today?</span>
+      <button class="search-btn">
+        <span class="material-icons">arrow_forward</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Features Section -->
+  <section class="features" id="features">
+    <div class="features-inner">
+      <h2 class="section-title">Platform Capabilities</h2>
+      <p class="section-desc">End-to-end regulatory reporting — from raw data ingestion to final compliance filing</p>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <span class="material-icons">cloud_upload</span>
+          </div>
+          <h3>Data Ingestion</h3>
+          <p>Ingest source data from loans, deposits, treasury trades, and general ledger via CSV uploads and batch processing.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon feature-icon-green">
+            <span class="material-icons">verified</span>
+          </div>
+          <h3>Validation & Quality</h3>
+          <p>Automated data validation with quality issue detection, resolution workflows, and correction log generation.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon feature-icon-orange">
+            <span class="material-icons">trending_up</span>
+          </div>
+          <h3>Risk Analytics</h3>
+          <p>Dynamic risk metric calculation per report with configurable thresholds and real-time risk evaluation.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon feature-icon-red">
+            <span class="material-icons">assignment_turned_in</span>
+          </div>
+          <h3>Report Lifecycle</h3>
+          <p>Complete report workflow — generate, submit, review, and approve with multi-level authorization controls.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon feature-icon-teal">
+            <span class="material-icons">history</span>
+          </div>
+          <h3>Audit Trail</h3>
+          <p>Comprehensive audit logging for every action across the system, ensuring full regulatory traceability.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- About Section -->
+  <section class="about" id="about">
+    <div class="about-inner">
+      <div class="about-card">
+        <span class="material-icons">verified</span>
+        <h3>99.9%</h3>
+        <p>Compliance Rate</p>
+      </div>
+      <div class="about-card">
+        <span class="material-icons">speed</span>
+        <h3>10x</h3>
+        <p>Faster Reporting</p>
+      </div>
+      <div class="about-card">
+        <span class="material-icons">description</span>
+        <h3>50+</h3>
+        <p>Regulation Templates</p>
+      </div>
+      <div class="about-card">
+        <span class="material-icons">security</span>
+        <h3>100%</h3>
+        <p>Secure & Audited</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer" id="home-footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <span class="material-icons">assessment</span>
+        <span>RegReportX</span>
+      </div>
+      <p>&copy; 2026 RegReportX. Built for Cognizant Technology Solutions.</p>
+    </div>
+  </footer>
+</div>

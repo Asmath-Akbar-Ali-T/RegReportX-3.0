@@ -1,0 +1,540 @@
+<div class="admin-layout">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="admin-sidebar">
+    <div class="sidebar-header">
+      <a routerLink="/" class="sidebar-brand">
+        <div class="brand-icon">
+          <span class="material-icons">assessment</span>
+        </div>
+        <span class="brand-name">RegReportX</span>
+      </a>
+    </div>
+
+    <nav class="sidebar-nav">
+      <button class="nav-item" [class.active]="activeTab === 'templates'" (click)="switchTab('templates')" id="tab-templates">
+        <span class="material-icons">description</span>
+        <span>Templates</span>
+      </button>
+      <button class="nav-item" [class.active]="activeTab === 'fields'" (click)="switchTab('fields')" id="tab-fields">
+        <span class="material-icons">view_column</span>
+        <span>Template Fields</span>
+      </button>
+      <button class="nav-item" [class.active]="activeTab === 'reports'" (click)="switchTab('reports')" id="tab-reports">
+        <span class="material-icons">fact_check</span>
+        <span>Report Approval</span>
+      </button>
+      <button class="nav-item" [class.active]="activeTab === 'users'" (click)="switchTab('users')" id="tab-users">
+        <span class="material-icons">people</span>
+        <span>User Management</span>
+      </button>
+      <button class="nav-item" [class.active]="activeTab === 'charts'" (click)="switchTab('charts')" id="tab-charts">
+        <span class="material-icons">bar_chart</span>
+        <span>Analytics</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar">
+          <span class="material-icons">person</span>
+        </div>
+        <div class="user-details">
+          <span class="user-name">{{ username || 'Admin' }}</span>
+          <span class="user-role">Administrator</span>
+        </div>
+      </div>
+      <button class="logout-btn" (click)="logout()" id="logout-btn">
+        <span class="material-icons">logout</span>
+        <span>Logout</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Notification Toast -->
+    @if (notification) {
+      <div class="toast" [class.toast-success]="notification.type === 'success'" [class.toast-error]="notification.type === 'error'">
+        <span class="material-icons">{{ notification.type === 'success' ? 'check_circle' : 'error' }}</span>
+        <span>{{ notification.message }}</span>
+      </div>
+    }
+
+    <!-- ==================== TEMPLATES TAB ==================== -->
+    @if (activeTab === 'templates') {
+      <div class="content-header">
+        <div>
+          <h1>Template Management</h1>
+          <p>Manage regulatory templates and configurations</p>
+        </div>
+        <button class="action-btn primary" (click)="openAddTemplate()" id="add-template-btn">
+          <span class="material-icons">add</span>
+          Add Template
+        </button>
+      </div>
+
+      <div class="card">
+        <div class="table-container">
+          <table id="templates-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Regulation Code</th>
+                <th>Description</th>
+                <th>Frequency</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (t of templates; track t.templateId) {
+                <tr>
+                  <td><span class="id-badge">{{ t.templateId }}</span></td>
+                  <td class="code-cell">{{ t.regulationCode }}</td>
+                  <td>{{ t.description }}</td>
+                  <td>{{ t.frequency }}</td>
+                  <td><span class="status-badge" [class]="getStatusClass(t.status)">{{ t.status }}</span></td>
+                  <td>
+                    <div class="action-group">
+                      <button class="icon-btn edit" (click)="openEditTemplate(t)" title="Edit">
+                        <span class="material-icons">edit</span>
+                      </button>
+                      <button class="icon-btn delete" (click)="deleteTemplate(t.templateId!)" title="Delete">
+                        <span class="material-icons">delete</span>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              }
+              @empty {
+                <tr>
+                  <td colspan="6" class="empty-state">
+                    <span class="material-icons">inbox</span>
+                    <p>No templates found</p>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+
+    <!-- ==================== FIELDS TAB ==================== -->
+    @if (activeTab === 'fields') {
+      <div class="content-header">
+        <div>
+          <h1>Template Field Management</h1>
+          <p>Manage fields and formulas for templates</p>
+        </div>
+        @if (selectedTemplateId) {
+          <button class="action-btn primary" (click)="openAddField()" id="add-field-btn">
+            <span class="material-icons">add</span>
+            Add Field
+          </button>
+        }
+      </div>
+
+      <!-- Template Selector -->
+      <div class="card selector-card">
+        <h3><span class="material-icons">list_alt</span> Select Template</h3>
+        <div class="template-chips">
+          @for (t of templates; track t.templateId) {
+            <button
+              class="chip"
+              [class.chip-active]="selectedTemplateId === t.templateId"
+              (click)="selectTemplateForFields(t.templateId!)"
+            >
+              {{ t.regulationCode }}
+            </button>
+          }
+          @empty {
+            <p class="text-muted">No templates available. Create one first.</p>
+          }
+        </div>
+      </div>
+
+      @if (selectedTemplateId) {
+        <div class="card">
+          <div class="table-container">
+            <table id="fields-table">
+              <thead>
+                <tr>
+                  <th>Field ID</th>
+                  <th>Field Name</th>
+                  <th>Data Type</th>
+                  <th>Mapping Expression / Formula</th>
+                  <th>Required</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (f of fields; track f.fieldId) {
+                  <tr>
+                    <td><span class="id-badge">{{ f.fieldId }}</span></td>
+                    <td class="code-cell">{{ f.fieldName }}</td>
+                    <td><span class="type-badge">{{ f.dataType }}</span></td>
+                    <td class="formula-cell">{{ f.mappingExpression }}</td>
+                    <td>
+                      <span class="required-badge" [class.required-yes]="f.requiredFlag" [class.required-no]="!f.requiredFlag">
+                        {{ f.requiredFlag ? 'Yes' : 'No' }}
+                      </span>
+                    </td>
+                    <td>
+                      <div class="action-group">
+                        <button class="icon-btn edit" (click)="openEditField(f)" title="Edit">
+                          <span class="material-icons">edit</span>
+                        </button>
+                        <button class="icon-btn delete" (click)="deleteField(f.fieldId!)" title="Delete">
+                          <span class="material-icons">delete</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                }
+                @empty {
+                  <tr>
+                    <td colspan="6" class="empty-state">
+                      <span class="material-icons">view_column</span>
+                      <p>No fields for this template</p>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+    }
+
+    <!-- ==================== REPORTS TAB ==================== -->
+    @if (activeTab === 'reports') {
+      <div class="content-header">
+        <div>
+          <h1>Report Approval</h1>
+          <p>Review and approve regulatory reports</p>
+        </div>
+      </div>
+
+      <div class="card selector-card">
+        <h3><span class="material-icons">search</span> Fetch Report</h3>
+        <div class="fetch-row">
+          <input
+            type="text"
+            [(ngModel)]="reportIdInput"
+            placeholder="Enter Report ID"
+            class="inline-input"
+            id="report-id-input"
+          />
+          <button class="action-btn primary" (click)="fetchReport()" id="fetch-report-btn">
+            <span class="material-icons">download</span>
+            Fetch
+          </button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="table-container">
+          <table id="reports-table">
+            <thead>
+              <tr>
+                <th>Report ID</th>
+                <th>Template</th>
+                <th>Period</th>
+                <th>Generated Date</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (r of reports; track r.reportId) {
+                <tr>
+                  <td><span class="id-badge">{{ r.reportId }}</span></td>
+                  <td>{{ r.template?.regulationCode || 'N/A' }}</td>
+                  <td>{{ r.period }}</td>
+                  <td>{{ r.generatedDate | date:'medium' }}</td>
+                  <td><span class="status-badge" [class]="getStatusClass(r.status)">{{ r.status }}</span></td>
+                  <td>
+                    <button
+                      class="action-btn success small"
+                      (click)="approveReport(r.reportId!)"
+                      [disabled]="r.status === 'APPROVED' || r.status === 'FILED'"
+                      id="approve-btn-{{r.reportId}}"
+                    >
+                      <span class="material-icons">check_circle</span>
+                      Approve
+                    </button>
+                  </td>
+                </tr>
+              }
+              @empty {
+                <tr>
+                  <td colspan="6" class="empty-state">
+                    <span class="material-icons">fact_check</span>
+                    <p>No reports loaded. Fetch a report by ID.</p>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+
+    <!-- ==================== USERS TAB ==================== -->
+    @if (activeTab === 'users') {
+      <div class="content-header">
+        <div>
+          <h1>User Management</h1>
+          <p>Manage system users and access roles</p>
+        </div>
+        <button class="action-btn primary" (click)="openAddUser()" id="add-user-btn">
+          <span class="material-icons">person_add</span>
+          Add User
+        </button>
+      </div>
+
+      <div class="card">
+        <div class="table-container">
+          <table id="users-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (u of users; track u.id) {
+                <tr>
+                  <td><span class="id-badge">{{ u.id }}</span></td>
+                  <td class="code-cell">{{ u.name }}</td>
+                  <td>{{ u.username }}</td>
+                  <td>{{ u.email }}</td>
+                  <td><span class="type-badge">{{ u.role }}</span></td>
+                  <td><span class="status-badge" [class]="getStatusClass(u.status)">{{ u.status }}</span></td>
+                  <td>
+                    <div class="action-group">
+                      <button class="icon-btn edit" (click)="openEditUser(u)" title="Edit">
+                        <span class="material-icons">edit</span>
+                      </button>
+                      <button class="icon-btn" [class.status-toggle-active]="u.status === 'ACTIVE'" [class.status-toggle-inactive]="u.status !== 'ACTIVE'" (click)="toggleUserStatus(u.id!)" title="Toggle Status">
+                        <span class="material-icons">{{ u.status === 'ACTIVE' ? 'toggle_on' : 'toggle_off' }}</span>
+                      </button>
+                      <button class="icon-btn delete" (click)="deleteUser(u.id!)" title="Delete">
+                        <span class="material-icons">delete</span>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              }
+              @empty {
+                <tr>
+                  <td colspan="7" class="empty-state">
+                    <span class="material-icons">people</span>
+                    <p>No users found</p>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+
+    <!-- ==================== CHARTS TAB ==================== -->
+    @if (activeTab === 'charts') {
+      <div class="content-header">
+        <div>
+          <h1>Analytics Dashboard</h1>
+          <p>Visualize template and field distributions</p>
+        </div>
+        <button class="action-btn outline" (click)="initCharts()" id="refresh-charts-btn">
+          <span class="material-icons">refresh</span>
+          Refresh
+        </button>
+      </div>
+
+      <div class="charts-grid">
+        <div class="card chart-card">
+          <h3><span class="material-icons">donut_small</span> Templates by Status</h3>
+          <div class="chart-wrapper">
+            <canvas #templateChart id="template-chart"></canvas>
+          </div>
+        </div>
+        <div class="card chart-card">
+          <h3><span class="material-icons">bar_chart</span> Fields per Template</h3>
+          <div class="chart-wrapper">
+            <canvas #fieldsChart id="fields-chart"></canvas>
+          </div>
+        </div>
+      </div>
+    }
+  </main>
+
+  <!-- ==================== TEMPLATE MODAL ==================== -->
+  @if (showTemplateModal) {
+    <div class="modal-overlay" (click)="closeTemplateModal()">
+      <div class="modal" (click)="$event.stopPropagation()" id="template-modal">
+        <div class="modal-header">
+          <h2>{{ editingTemplate ? 'Edit Template' : 'Add Template' }}</h2>
+          <button class="close-btn" (click)="closeTemplateModal()">
+            <span class="material-icons">close</span>
+          </button>
+        </div>
+        <form (ngSubmit)="saveTemplate()" class="modal-body">
+          <div class="form-group">
+            <label>Regulation Code</label>
+            <input type="text" [(ngModel)]="templateForm.regulationCode" name="regulationCode" required placeholder="e.g. BCBS239" />
+          </div>
+          <div class="form-group">
+            <label>Description</label>
+            <input type="text" [(ngModel)]="templateForm.description" name="description" required placeholder="Template description" />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Frequency</label>
+              <select [(ngModel)]="templateForm.frequency" name="frequency" required>
+                <option value="">Select</option>
+                <option value="DAILY">Daily</option>
+                <option value="WEEKLY">Weekly</option>
+                <option value="MONTHLY">Monthly</option>
+                <option value="QUARTERLY">Quarterly</option>
+                <option value="ANNUALLY">Annually</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Status</label>
+              <select [(ngModel)]="templateForm.status" name="status" required>
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+                <option value="DRAFT">Draft</option>
+              </select>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="action-btn outline" (click)="closeTemplateModal()">Cancel</button>
+            <button type="submit" class="action-btn primary">
+              <span class="material-icons">save</span>
+              {{ editingTemplate ? 'Update' : 'Create' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- ==================== FIELD MODAL ==================== -->
+  @if (showFieldModal) {
+    <div class="modal-overlay" (click)="closeFieldModal()">
+      <div class="modal" (click)="$event.stopPropagation()" id="field-modal">
+        <div class="modal-header">
+          <h2>{{ editingField ? 'Edit Field' : 'Add Field' }}</h2>
+          <button class="close-btn" (click)="closeFieldModal()">
+            <span class="material-icons">close</span>
+          </button>
+        </div>
+        <form (ngSubmit)="saveField()" class="modal-body">
+          <div class="form-group">
+            <label>Field Name</label>
+            <input type="text" [(ngModel)]="fieldForm.fieldName" name="fieldName" required placeholder="e.g. total_assets" />
+          </div>
+          <div class="form-group">
+            <label>Data Type</label>
+            <select [(ngModel)]="fieldForm.dataType" name="dataType" required>
+              <option value="">Select</option>
+              <option value="STRING">STRING</option>
+              <option value="INTEGER">INTEGER</option>
+              <option value="DECIMAL">DECIMAL</option>
+              <option value="DATE">DATE</option>
+              <option value="BOOLEAN">BOOLEAN</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Mapping Expression / Formula</label>
+            <input type="text" [(ngModel)]="fieldForm.mappingExpression" name="mappingExpression" placeholder="e.g. SUM(field1, field2)" />
+          </div>
+          <div class="form-group checkbox-group">
+            <label class="checkbox-label">
+              <input type="checkbox" [(ngModel)]="fieldForm.requiredFlag" name="requiredFlag" />
+              <span class="checkmark"></span>
+              Required Field
+            </label>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="action-btn outline" (click)="closeFieldModal()">Cancel</button>
+            <button type="submit" class="action-btn primary">
+              <span class="material-icons">save</span>
+              {{ editingField ? 'Update' : 'Create' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- ==================== USER MODAL ==================== -->
+  @if (showUserModal) {
+    <div class="modal-overlay" (click)="closeUserModal()">
+      <div class="modal" (click)="$event.stopPropagation()" id="user-modal">
+        <div class="modal-header">
+          <h2>{{ editingUser ? 'Edit User' : 'Add User' }}</h2>
+          <button class="close-btn" (click)="closeUserModal()">
+            <span class="material-icons">close</span>
+          </button>
+        </div>
+        <form (ngSubmit)="saveUser()" class="modal-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Name</label>
+              <input type="text" [(ngModel)]="userForm.name" name="name" required placeholder="Full name" />
+            </div>
+            <div class="form-group">
+              <label>Username</label>
+              <input type="text" [(ngModel)]="userForm.username" name="username" required placeholder="Username" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" [(ngModel)]="userForm.email" name="email" required placeholder="user@example.com" />
+          </div>
+          <div class="form-group">
+            <label>{{ editingUser ? 'New Password (leave blank to keep unchanged)' : 'Password' }}</label>
+            <input type="password" [(ngModel)]="userForm.password" name="password" [required]="!editingUser" placeholder="Enter password" />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Role</label>
+              <select [(ngModel)]="userForm.role" name="role" required>
+                <option value="">Select Role</option>
+                <option value="REGTECH_ADMIN">REGTECH_ADMIN</option>
+                <option value="COMPLIANCE_ANALYST">COMPLIANCE_ANALYST</option>
+                <option value="RISK_ANALYST">RISK_ANALYST</option>
+                <option value="REPORTING_OFFICER">REPORTING_OFFICER</option>
+                <option value="OPERATIONS_OFFICER">OPERATIONS_OFFICER</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Status</label>
+              <select [(ngModel)]="userForm.status" name="status" required>
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+              </select>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="action-btn outline" (click)="closeUserModal()">Cancel</button>
+            <button type="submit" class="action-btn primary">
+              <span class="material-icons">save</span>
+              {{ editingUser ? 'Update' : 'Create' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+</div>

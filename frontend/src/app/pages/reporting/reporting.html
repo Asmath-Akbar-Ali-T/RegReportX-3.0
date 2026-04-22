@@ -1,0 +1,577 @@
+<div class="reporting-layout">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="reporting-sidebar">
+    <div class="sidebar-header">
+      <a routerLink="/" class="sidebar-brand">
+        <div class="brand-icon">
+          <span class="material-icons">assessment</span>
+        </div>
+        <span class="brand-name">RegReportX</span>
+      </a>
+    </div>
+
+    <nav class="sidebar-nav">
+      <button class="nav-item" [class.active]="activeView === 'dashboard'" (click)="navigate('dashboard')" id="tab-dashboard">
+        <span class="material-icons">dashboard</span>
+        <span>Dashboard</span>
+      </button>
+      <button class="nav-item" [class.active]="activeView === 'generate'" (click)="navigate('generate')" id="tab-generate">
+        <span class="material-icons">note_add</span>
+        <span>Generate</span>
+      </button>
+      <button class="nav-item" [class.active]="activeView === 'list'" (click)="navigate('list')" id="tab-list">
+        <span class="material-icons">list_alt</span>
+        <span>All Reports</span>
+      </button>
+      <button class="nav-item" [class.active]="activeView === 'file'" (click)="navigate('file')" id="tab-file">
+        <span class="material-icons">publish</span>
+        <span>File Reports</span>
+      </button>
+      <button class="nav-item" [class.active]="activeView === 'audit'" (click)="navigate('audit')" id="tab-audit">
+        <span class="material-icons">history</span>
+        <span>Audit Log</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar">
+          {{ username.charAt(0).toUpperCase() }}
+        </div>
+        <div class="user-details">
+          <span class="user-name">{{ username || 'Officer' }}</span>
+          <span class="user-role">Reporting Officer</span>
+        </div>
+      </div>
+      <button class="logout-btn" (click)="logout()" id="logout-btn">
+        <span class="material-icons">logout</span>
+        <span>Logout</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ══════════════ MAIN CONTENT ══════════════ -->
+  <main class="ro-main">
+
+    <!-- ─── DASHBOARD VIEW ─── -->
+    <div *ngIf="activeView === 'dashboard'" class="ro-view">
+
+      <div class="ro-page-header">
+        <div>
+          <h1 class="ro-page-title">Reporting Officer Dashboard</h1>
+          <p class="ro-page-sub">Manage report generation and official regulatory filings</p>
+        </div>
+        <div class="ro-header-actions">
+          <button id="btn-go-generate" class="ro-btn ro-btn-primary" (click)="navigate('generate')">
+            <span class="material-icons">note_add</span> Generate New Report
+          </button>
+        </div>
+      </div>
+
+      <!-- Stats Strip -->
+      <div class="ro-stats-grid">
+        <div class="ro-stat-card ro-stat-blue">
+          <div class="ro-stat-icon"><span class="material-icons">summarize</span></div>
+          <div class="ro-stat-body">
+            <span class="ro-stat-value">{{ stats.total }}</span>
+            <span class="ro-stat-label">Total Reports</span>
+          </div>
+        </div>
+        <div class="ro-stat-card ro-stat-indigo">
+          <div class="ro-stat-icon"><span class="material-icons">note_add</span></div>
+          <div class="ro-stat-body">
+            <span class="ro-stat-value">{{ stats.generated }}</span>
+            <span class="ro-stat-label">Generated</span>
+          </div>
+        </div>
+        <div class="ro-stat-card ro-stat-green">
+          <div class="ro-stat-icon"><span class="material-icons">check_circle</span></div>
+          <div class="ro-stat-body">
+            <span class="ro-stat-value">{{ stats.approved }}</span>
+            <span class="ro-stat-label">Approved</span>
+          </div>
+        </div>
+        <div class="ro-stat-card ro-stat-teal">
+          <div class="ro-stat-icon"><span class="material-icons">publish</span></div>
+          <div class="ro-stat-body">
+            <span class="ro-stat-value">{{ stats.filed }}</span>
+            <span class="ro-stat-label">Filed</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Action Cards -->
+      <div class="ro-actions-grid">
+        <div id="card-generate" class="ro-action-card ro-action-blue" (click)="navigate('generate')">
+          <div class="ro-action-glow"></div>
+          <div class="ro-action-icon"><span class="material-icons">note_add</span></div>
+          <h3>Generate Report</h3>
+          <p>Create a new regulatory report from a template and reporting period.</p>
+          <div class="ro-action-arrow"><span class="material-icons">arrow_forward</span></div>
+        </div>
+
+        <div id="card-view" class="ro-action-card ro-action-indigo" (click)="navigate('list')">
+          <div class="ro-action-glow"></div>
+          <div class="ro-action-icon"><span class="material-icons">list_alt</span></div>
+          <h3>View All Reports</h3>
+          <p>Browse, search, and monitor every report across all lifecycle stages.</p>
+          <div class="ro-action-arrow"><span class="material-icons">arrow_forward</span></div>
+        </div>
+
+        <div id="card-file" class="ro-action-card ro-action-teal" (click)="navigate('file')">
+          <div class="ro-action-glow"></div>
+          <div class="ro-action-icon"><span class="material-icons">publish</span></div>
+          <h3>File Reports</h3>
+          <p>Officially submit approved reports to the regulatory authority.</p>
+          <div class="ro-action-arrow"><span class="material-icons">arrow_forward</span></div>
+        </div>
+      </div>
+
+      <!-- Workflow Guide -->
+      <div class="ro-workflow-card">
+        <h2 class="ro-section-title"><span class="material-icons">account_tree</span> Report Lifecycle</h2>
+        <div class="ro-workflow-steps">
+          <div class="ro-wf-step ro-wf-blue">
+            <div class="ro-wf-icon"><span class="material-icons">note_add</span></div>
+            <div class="ro-wf-label">Generate</div>
+            <div class="ro-wf-desc">Create report from template</div>
+          </div>
+          <div class="ro-wf-connector"><span class="material-icons">chevron_right</span></div>
+          <div class="ro-wf-step ro-wf-orange">
+            <div class="ro-wf-icon"><span class="material-icons">send</span></div>
+            <div class="ro-wf-label">Submit</div>
+            <div class="ro-wf-desc">Sent for compliance review</div>
+          </div>
+          <div class="ro-wf-connector"><span class="material-icons">chevron_right</span></div>
+          <div class="ro-wf-step ro-wf-green">
+            <div class="ro-wf-icon"><span class="material-icons">check_circle</span></div>
+            <div class="ro-wf-label">Approve</div>
+            <div class="ro-wf-desc">Admin approves the report</div>
+          </div>
+          <div class="ro-wf-connector"><span class="material-icons">chevron_right</span></div>
+          <div class="ro-wf-step ro-wf-teal">
+            <div class="ro-wf-icon"><span class="material-icons">publish</span></div>
+            <div class="ro-wf-label">File</div>
+            <div class="ro-wf-desc">Filed with regulator</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── GENERATE VIEW ─── -->
+    <div *ngIf="activeView === 'generate'" class="ro-view">
+      <div class="ro-page-header">
+        <div>
+          <h1 class="ro-page-title">Generate Report</h1>
+          <p class="ro-page-sub">Create a new regulatory report based on a template and reporting period</p>
+        </div>
+      </div>
+
+      <div class="ro-generate-layout">
+        <!-- Form Card -->
+        <div class="ro-card">
+          <div class="ro-card-header">
+            <span class="material-icons">note_add</span>
+            <h2>Report Parameters</h2>
+          </div>
+          <div class="ro-card-body">
+            <div class="ro-form-group">
+              <label class="ro-label" for="gen-template-id">
+                <span class="material-icons">description</span> Template ID
+              </label>
+              <input
+                id="gen-template-id"
+                type="number"
+                min="1"
+                class="ro-input"
+                [(ngModel)]="generateTemplateId"
+                placeholder="e.g. 1"
+              />
+              <span class="ro-help-text">Enter the numeric ID of the regulatory template to use</span>
+            </div>
+
+            <div class="ro-form-group">
+              <label class="ro-label" for="gen-period">
+                <span class="material-icons">event</span> Reporting Period
+              </label>
+              <select id="gen-period" class="ro-input ro-select" [(ngModel)]="generatePeriod">
+                <option *ngFor="let p of PERIODS" [value]="p">{{ p }}</option>
+              </select>
+              <span class="ro-help-text">Select the regulatory reporting period</span>
+            </div>
+
+            <button
+              id="btn-generate"
+              class="ro-btn ro-btn-primary ro-btn-full"
+              (click)="generateReport()"
+              [disabled]="generating"
+            >
+              <span class="material-icons" *ngIf="!generating">note_add</span>
+              <span class="ro-spinner" *ngIf="generating"></span>
+              {{ generating ? 'Generating...' : 'Generate Report' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Result Card -->
+        <div class="ro-card ro-result-card" *ngIf="lastGenerated">
+          <div class="ro-card-header ro-card-header-success">
+            <span class="material-icons">check_circle</span>
+            <h2>Report Generated</h2>
+          </div>
+          <div class="ro-card-body">
+            <div class="ro-result-grid">
+              <div class="ro-result-item">
+                <span class="ro-result-label">Report ID</span>
+                <span class="ro-result-value">#{{ lastGenerated.reportId }}</span>
+              </div>
+              <div class="ro-result-item">
+                <span class="ro-result-label">Period</span>
+                <span class="ro-result-value">{{ lastGenerated.period }}</span>
+              </div>
+              <div class="ro-result-item">
+                <span class="ro-result-label">Status</span>
+                <span class="ro-status-badge" [ngClass]="getStatusClass(lastGenerated.status)">
+                  <span class="material-icons">{{ getStatusIcon(lastGenerated.status) }}</span>
+                  {{ lastGenerated.status }}
+                </span>
+              </div>
+              <div class="ro-result-item">
+                <span class="ro-result-label">Generated</span>
+                <span class="ro-result-value">{{ formatDate(lastGenerated.generatedDate) }}</span>
+              </div>
+              <div class="ro-result-item">
+                <span class="ro-result-label">Template</span>
+                <span class="ro-result-value">{{ lastGenerated.template?.regulationCode || '—' }}</span>
+              </div>
+            </div>
+            <div class="ro-result-note">
+              <span class="material-icons">info</span>
+              This report is now in <strong>GENERATED</strong> status. It must be submitted for compliance review before it can be filed.
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty state when no result yet -->
+        <div class="ro-card ro-empty-hint" *ngIf="!lastGenerated">
+          <div class="ro-empty-icon"><span class="material-icons">receipt_long</span></div>
+          <p>Fill in the parameters and click <strong>Generate Report</strong> to create a new regulatory report.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── ALL REPORTS VIEW ─── -->
+    <div *ngIf="activeView === 'list'" class="ro-view">
+      <div class="ro-page-header">
+        <div>
+          <h1 class="ro-page-title">All Reports</h1>
+          <p class="ro-page-sub">Browse and track every report across all lifecycle stages</p>
+        </div>
+        <button id="btn-refresh-list" class="ro-btn ro-btn-ghost" (click)="loadReports()" [disabled]="loadingReports">
+          <span class="material-icons" [class.ro-spin]="loadingReports">refresh</span>
+          Refresh
+        </button>
+      </div>
+
+      <!-- Filters -->
+      <div class="ro-filter-bar">
+        <div class="ro-search-box">
+          <span class="material-icons">search</span>
+          <input
+            id="search-reports"
+            type="text"
+            placeholder="Search by period, status, regulation…"
+            [(ngModel)]="searchQuery"
+            (ngModelChange)="onSearchChange()"
+          />
+        </div>
+        <div class="ro-filter-chips">
+          <button
+            *ngFor="let s of STATUS_OPTIONS"
+            [id]="'filter-' + s"
+            class="ro-chip"
+            [class.active]="statusFilter === s"
+            (click)="statusFilter = s; onStatusChange()"
+          >{{ s }}</button>
+        </div>
+      </div>
+
+      <!-- Loading -->
+      <div class="ro-loading" *ngIf="loadingReports">
+        <div class="ro-loading-spinner"></div>
+        <p>Loading reports…</p>
+      </div>
+
+      <!-- Reports Table -->
+      <div class="ro-table-card" *ngIf="!loadingReports">
+        <table class="ro-table" *ngIf="filteredReports.length > 0">
+          <thead>
+            <tr>
+              <th>Report ID</th>
+              <th>Regulation</th>
+              <th>Period</th>
+              <th>Generated Date</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let r of filteredReports">
+              <td><span class="ro-report-id">#{{ r.reportId }}</span></td>
+              <td>{{ r.template?.regulationCode || '—' }}</td>
+              <td><span class="ro-period-badge">{{ r.period }}</span></td>
+              <td class="ro-date-cell">{{ formatDate(r.generatedDate) }}</td>
+              <td>
+                <span class="ro-status-badge" [ngClass]="getStatusClass(r.status)">
+                  <span class="material-icons">{{ getStatusIcon(r.status) }}</span>
+                  {{ r.status }}
+                </span>
+              </td>
+              <td>
+                <button
+                  *ngIf="isFileable(r)"
+                  [id]="'btn-file-' + r.reportId"
+                  class="ro-btn ro-btn-teal ro-btn-sm"
+                  (click)="confirmFileReport(r)"
+                  [disabled]="filingMap[r.reportId!]"
+                >
+                  <span class="material-icons" *ngIf="!filingMap[r.reportId!]">publish</span>
+                  <span class="ro-spinner ro-spinner-sm" *ngIf="filingMap[r.reportId!]"></span>
+                  {{ filingMap[r.reportId!] ? 'Filing…' : 'File' }}
+                </button>
+                <span *ngIf="!isFileable(r)" class="ro-no-action">—</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Empty -->
+        <div class="ro-empty-state" *ngIf="filteredReports.length === 0">
+          <span class="material-icons">inbox</span>
+          <h3>No reports found</h3>
+          <p>{{ searchQuery || statusFilter !== 'ALL' ? 'Try adjusting your filters.' : 'Generate your first report to get started.' }}</p>
+          <button class="ro-btn ro-btn-primary" (click)="navigate('generate')" *ngIf="!searchQuery && statusFilter === 'ALL'">
+            <span class="material-icons">note_add</span> Generate Report
+          </button>
+        </div>
+
+        <!-- Count -->
+        <div class="ro-table-footer" *ngIf="filteredReports.length > 0">
+          <span>Showing <strong>{{ filteredReports.length }}</strong> of <strong>{{ reports.length }}</strong> reports</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── FILE REPORTS VIEW ─── -->
+    <div *ngIf="activeView === 'file'" class="ro-view">
+      <div class="ro-page-header">
+        <div>
+          <h1 class="ro-page-title">File Reports</h1>
+          <p class="ro-page-sub">Officially submit approved reports to the regulatory authority</p>
+        </div>
+        <button id="btn-refresh-file" class="ro-btn ro-btn-ghost" (click)="loadReports()" [disabled]="loadingReports">
+          <span class="material-icons" [class.ro-spin]="loadingReports">refresh</span>
+          Refresh
+        </button>
+      </div>
+
+      <!-- Info Banner -->
+      <div class="ro-info-banner">
+        <span class="material-icons">info</span>
+        <div>
+          <strong>Filing Criteria</strong> — Only reports with status <strong>APPROVED</strong> can be filed. Reports must pass compliance review before they become eligible for filing.
+        </div>
+      </div>
+
+      <!-- Loading -->
+      <div class="ro-loading" *ngIf="loadingReports">
+        <div class="ro-loading-spinner"></div>
+        <p>Loading approved reports…</p>
+      </div>
+
+      <!-- Approved Reports -->
+      <div *ngIf="!loadingReports">
+        <div class="ro-file-grid" *ngIf="approvedReports.length > 0">
+          <div
+            *ngFor="let r of approvedReports"
+            class="ro-file-card"
+            [id]="'file-card-' + r.reportId"
+          >
+            <div class="ro-file-card-header">
+              <div class="ro-file-card-id">#{{ r.reportId }}</div>
+              <span class="ro-status-badge status-approved">
+                <span class="material-icons">check_circle</span> APPROVED
+              </span>
+            </div>
+            <div class="ro-file-card-details">
+              <div class="ro-file-detail">
+                <span class="material-icons">calendar_today</span>
+                <div>
+                  <span class="ro-detail-label">Period</span>
+                  <span class="ro-detail-value">{{ r.period }}</span>
+                </div>
+              </div>
+              <div class="ro-file-detail">
+                <span class="material-icons">description</span>
+                <div>
+                  <span class="ro-detail-label">Regulation</span>
+                  <span class="ro-detail-value">{{ r.template?.regulationCode || '—' }}</span>
+                </div>
+              </div>
+              <div class="ro-file-detail">
+                <span class="material-icons">schedule</span>
+                <div>
+                  <span class="ro-detail-label">Generated</span>
+                  <span class="ro-detail-value">{{ formatDate(r.generatedDate) }}</span>
+                </div>
+              </div>
+            </div>
+            <button
+              [id]="'btn-file-card-' + r.reportId"
+              class="ro-btn ro-btn-teal ro-btn-full"
+              (click)="confirmFileReport(r)"
+              [disabled]="filingMap[r.reportId!]"
+            >
+              <span class="material-icons" *ngIf="!filingMap[r.reportId!]">publish</span>
+              <span class="ro-spinner ro-spinner-sm" *ngIf="filingMap[r.reportId!]"></span>
+              {{ filingMap[r.reportId!] ? 'Filing Report…' : 'File This Report' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Empty state -->
+        <div class="ro-empty-state" *ngIf="approvedReports.length === 0">
+          <span class="material-icons">hourglass_empty</span>
+          <h3>No approved reports available</h3>
+          <p>All filing-eligible reports must first be approved by the RegTech Admin. Check back after compliance review.</p>
+          <button class="ro-btn ro-btn-ghost" (click)="navigate('list')">
+            <span class="material-icons">list_alt</span> View All Reports
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── AUDIT LOG VIEW ─── -->
+    <div *ngIf="activeView === 'audit'" class="ro-view">
+      <div class="ro-page-header">
+        <div>
+          <h1 class="ro-page-title">Audit Log</h1>
+          <p class="ro-page-sub">Complete activity trail of all system actions</p>
+        </div>
+        <div class="ro-header-actions">
+          <div class="ro-audit-search-wrapper">
+            <span class="material-icons ro-audit-search-icon">search</span>
+            <input type="text" class="ro-audit-search-input" placeholder="Search actions, users..."
+              [(ngModel)]="auditSearchTerm" (ngModelChange)="onAuditSearch()" />
+          </div>
+          <button class="ro-btn ro-btn-ghost" (click)="loadAuditLogs()" [disabled]="isLoadingAudit">
+            <span class="material-icons" [class.ro-spin]="isLoadingAudit">refresh</span> Refresh
+          </button>
+        </div>
+      </div>
+
+      <!-- Loading -->
+      <div class="ro-loading" *ngIf="isLoadingAudit">
+        <div class="ro-loading-spinner"></div>
+        <p>Loading audit logs…</p>
+      </div>
+
+      <div class="ro-table-card ro-audit-card" *ngIf="!isLoadingAudit">
+        <table class="ro-table" *ngIf="filteredAuditLogs.length > 0">
+          <thead>
+            <tr><th>Timestamp</th><th>User</th><th>Action</th><th>Module</th><th>Details</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let log of paginatedAuditLogs" class="ro-audit-row">
+              <td>
+                <div class="ro-audit-timestamp">
+                  <span class="material-icons">schedule</span>
+                  <span>{{ log.timestamp | date:'medium' }}</span>
+                </div>
+              </td>
+              <td>
+                <div class="ro-audit-user-cell">
+                  <div class="ro-audit-user-avatar">
+                    {{ log.user?.name ? log.user?.name?.charAt(0)?.toUpperCase() : '?' }}
+                  </div>
+                  <div class="ro-audit-user-info">
+                    <span class="ro-audit-user-name">{{ log.user?.name || 'System' }}</span>
+                    <span class="ro-audit-user-role">{{ log.user?.role || '' }}</span>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <span class="ro-audit-action-badge" [ngClass]="getAuditActionClass(log.action)">
+                  <span class="material-icons">{{ getAuditActionIcon(log.action) }}</span>
+                  {{ getAuditActionLabel(log.action) }}
+                </span>
+              </td>
+              <td><span class="ro-audit-module-badge">{{ log.resource }}</span></td>
+              <td>
+                <span class="ro-audit-metadata" *ngIf="log.metadata">{{ log.metadata }}</span>
+                <span class="ro-audit-metadata ro-audit-no-detail" *ngIf="!log.metadata">—</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Empty -->
+        <div class="ro-empty-state" *ngIf="filteredAuditLogs.length === 0">
+          <span class="material-icons">history</span>
+          <h3 *ngIf="!auditSearchTerm">No audit logs recorded yet</h3>
+          <h3 *ngIf="auditSearchTerm">No logs match your search</h3>
+          <p>{{ auditSearchTerm ? 'Try adjusting your search terms.' : 'Activity will be recorded here as actions are performed.' }}</p>
+        </div>
+
+        <!-- Pagination -->
+        <div class="ro-table-footer" *ngIf="filteredAuditLogs.length > 0">
+          <span>Page {{ auditPage }} of {{ auditTotalPages }} · {{ filteredAuditLogs.length }} records</span>
+          <div class="ro-pagination-controls">
+            <button class="ro-btn ro-btn-ghost ro-btn-sm" (click)="auditPrev()" [disabled]="auditPage === 1">
+              <span class="material-icons">chevron_left</span> Prev
+            </button>
+            <button class="ro-btn ro-btn-ghost ro-btn-sm" (click)="auditNext()" [disabled]="auditPage === auditTotalPages">
+              Next <span class="material-icons">chevron_right</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ══════════════ CONFIRM MODAL ══════════════ -->
+  <div class="ro-modal-overlay" *ngIf="confirmModal.show" (click)="closeModal()">
+    <div class="ro-modal" (click)="$event.stopPropagation()">
+      <div class="ro-modal-icon">
+        <span class="material-icons">publish</span>
+      </div>
+      <h3 class="ro-modal-title">{{ confirmModal.title }}</h3>
+      <p class="ro-modal-message">{{ confirmModal.message }}</p>
+      <div class="ro-modal-actions">
+        <button id="modal-cancel" class="ro-btn ro-btn-ghost" (click)="closeModal()">Cancel</button>
+        <button id="modal-confirm" class="ro-btn ro-btn-teal" (click)="confirmModal.onConfirm()">
+          <span class="material-icons">publish</span> Confirm Filing
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ TOAST STACK ══════════════ -->
+  <div class="ro-toast-stack">
+    <div
+      *ngFor="let t of toasts"
+      class="ro-toast"
+      [ngClass]="'ro-toast-' + t.type"
+    >
+      <span class="material-icons">
+        {{ t.type === 'success' ? 'check_circle' : t.type === 'error' ? 'error' : 'info' }}
+      </span>
+      <span>{{ t.message }}</span>
+      <button class="ro-toast-close" (click)="removeToast(t.id)">
+        <span class="material-icons">close</span>
+      </button>
+    </div>
+  </div>
+
+</div>

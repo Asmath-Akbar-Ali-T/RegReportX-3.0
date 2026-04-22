@@ -1,0 +1,86 @@
+<div class="login-page">
+  <!-- Navbar -->
+  <nav class="login-nav">
+    <div class="nav-inner">
+      <a routerLink="/" class="nav-brand" id="login-back-link">
+        <span class="material-icons">assessment</span>
+        <span>RegReportX</span>
+      </a>
+      <a routerLink="/" class="back-link">
+        <span class="material-icons">arrow_back</span>
+        Back to Home
+      </a>
+    </div>
+  </nav>
+
+  <!-- Login Content -->
+  <div class="login-content">
+    <div class="login-card" id="login-form-card">
+      <div class="card-header">
+        <div class="card-icon">
+          <span class="material-icons">lock_open</span>
+        </div>
+        <h2>Sign In</h2>
+        <p>Access your admin dashboard</p>
+      </div>
+
+      @if (errorMessage) {
+        <div class="error-msg" id="login-error">
+          <span class="material-icons">error_outline</span>
+          {{ errorMessage }}
+        </div>
+      }
+
+      <form (ngSubmit)="onSubmit()" id="login-form">
+        <div class="field">
+          <label for="username">Username</label>
+          <div class="input-wrap">
+            <span class="material-icons">person_outline</span>
+            <input
+              type="text"
+              id="username"
+              [(ngModel)]="username"
+              name="username"
+              placeholder="Enter your username"
+              autocomplete="username"
+              [disabled]="isLoading"
+              required
+            />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="password">Password</label>
+          <div class="input-wrap">
+            <span class="material-icons">lock_outline</span>
+            <input
+              type="password"
+              id="password"
+              [(ngModel)]="password"
+              name="password"
+              placeholder="Enter your password"
+              autocomplete="current-password"
+              [disabled]="isLoading"
+              required
+            />
+          </div>
+        </div>
+
+        <button type="submit" class="submit-btn" id="login-submit-btn" [disabled]="isLoading">
+          @if (isLoading) {
+            <span class="spinner"></span>
+            Signing in...
+          } @else {
+            Sign In
+            <span class="material-icons">arrow_forward</span>
+          }
+        </button>
+      </form>
+
+      <div class="card-footer">
+        <span class="material-icons">info_outline</span>
+        To register, contact your administrator
+      </div>
+    </div>
+  </div>
+</div>

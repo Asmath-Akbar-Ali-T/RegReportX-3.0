@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Risk Analyst - RegReportX (RBI)</title>
+    <!-- Modern Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Config -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #0c2340;
+            /* Dark Blue */
+            --primary-light: #1a3a66;
+            --secondary-color: #2563eb;
+            --accent-color: #10b981;
+            --bg-color: #f3f4f6;
+            --sidebar-bg: #0c2340;
+            --card-bg: #ffffff;
+            --text-main: #1f2937;
+            --text-light: #6b7280;
+            --border-color: #e5e7eb;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --sidebar-width: 280px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--sidebar-bg);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            transition: all 0.3s;
+            z-index: 100;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .sidebar-header h2 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar-menu {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem 0;
+            list-style: none;
+        }
+
+        .menu-item {
+            padding: 0 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .menu-link {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.875rem 1rem;
+            color: #cbd5e1;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+        }
+
+        .menu-link:hover,
+        .menu-link.active {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .menu-link i {
+            width: 20px;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+
+        .sidebar-footer {
+            padding: 1.5rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .logout-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: #cbd5e1;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+            cursor: pointer;
+        }
+
+        .logout-btn:hover {
+            color: var(--danger);
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background-color: var(--bg-color);
+        }
+
+        .topbar {
+            height: 70px;
+            background-color: var(--card-bg);
+            padding: 0 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .topbar-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+
+        .user-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .user-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .user-role {
+            font-size: 0.8rem;
+            color: var(--text-light);
+        }
+
+        /* Dashboard Content */
+        .dashboard-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem;
+        }
+
+        /* Read-only Alert Bar */
+        .alert-bar {
+            background-color: #dbeafe;
+            border-left: 4px solid var(--secondary-color);
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+            color: #1e40af;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* KPI Cards */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .kpi-card {
+            background-color: var(--card-bg);
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02), border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .kpi-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .kpi-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .kpi-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 0.25rem;
+        }
+
+        .kpi-desc {
+            font-size: 0.85rem;
+            color: var(--text-light);
+        }
+
+        .text-success {
+            color: var(--accent-color);
+            font-weight: 600;
+        }
+
+        .text-danger {
+            color: var(--danger);
+            font-weight: 600;
+        }
+
+        /* Grid Layout */
+        .dashboard-row {
+            display: grid;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .panel {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #fafafa;
+        }
+
+        .panel-title {
+            font-weight: 600;
+            font-size: 1.05rem;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .panel-body {
+            padding: 1.5rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Tables & Lists */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .data-table th {
+            font-weight: 600;
+            color: var(--text-light);
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .data-table tbody tr:hover {
+            background-color: #f8fafc;
+        }
+
+        .data-table td.number {
+            text-align: right;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: 600;
+        }
+
+        .data-table th.number {
+            text-align: right;
+        }
+
+        /* Dummy Charts (CSS based) */
+        .chart-bar-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .chart-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .chart-label {
+            width: 120px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .chart-bar-container {
+            flex: 1;
+            height: 24px;
+            background-color: var(--bg-color);
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .chart-bar {
+            height: 100%;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 0.5rem;
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .bar-blue {
+            background-color: var(--secondary-color);
+        }
+
+        .bar-dark {
+            background-color: var(--primary-color);
+        }
+
+        /* Donut Chart Mockup (CSS only) */
+        .donut-container {
+            position: relative;
+            width: 160px;
+            height: 160px;
+            border-radius: 50%;
+            background: conic-gradient(var(--primary-color) 0% 55%,
+                    var(--secondary-color) 55% 85%,
+                    var(--warning) 85% 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .donut-hole {
+            width: 110px;
+            height: 110px;
+            background-color: var(--card-bg);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        .donut-label {
+            font-size: 0.75rem;
+            color: var(--text-light);
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .donut-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .legend-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+
+        .line-chart {
+            width: 100%;
+            height: 180px;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M0,80 Q25,60 50,70 T100,20 L100,100 L0,100 Z" fill="%23e0e7ff"/><path d="M0,80 Q25,60 50,70 T100,20" fill="none" stroke="%232563eb" stroke-width="2"/></svg>') no-repeat center bottom;
+            background-size: cover;
+            border-bottom: 1px solid var(--border-color);
+            border-left: 1px solid var(--border-color);
+            position: relative;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <i class="fa-solid fa-building-columns" style="font-size: 1.5rem; color: #10b981;"></i>
+            <h2>RegReportX</h2>
+        </div>
+
+        <ul class="sidebar-menu">
+            <li class="menu-item"><a href="#" class="menu-link active"><i class="fa-solid fa-chart-pie"></i> Risk Calc
+                    Dashboard</a></li>
+            <li class="menu-item"><a href="#" class="menu-link"><i class="fa-solid fa-calculator"></i> Total RWA
+                    View</a></li>
+            <li class="menu-item"><a href="#" class="menu-link"><i class="fa-solid fa-network-wired"></i> Exposure
+                    Concentration</a></li>
+            <li class="menu-item"><a href="#" class="menu-link"><i class="fa-solid fa-arrow-trend-up"></i> Capital
+                    Adequacy Trends</a></li>
+            <li class="menu-item"><a href="#" class="menu-link"><i class="fa-solid fa-water"></i> Liquidity Trends</a>
+            </li>
+        </ul>
+
+        <div class="sidebar-footer">
+            <a href="index.html" class="logout-btn" onclick="localStorage.removeItem('userRole')">
+                <i class="fa-solid fa-arrow-right-from-bracket"></i> Secure Logout
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Topbar -->
+        <header class="topbar">
+            <div class="topbar-title">Risk Metrics View (RBI Basel III Guidelines)</div>
+            <div class="user-profile">
+                <div class="user-info" style="align-items: flex-end;">
+                    <span class="user-name">Riley Analyst</span>
+                    <span class="user-role">Risk Analyst (View-Only)</span>
+                </div>
+                <div class="avatar" style="background-color: var(--secondary-color);">RA</div>
+            </div>
+        </header>
+
+        <div class="dashboard-container">
+            <div class="alert-bar">
+                <i class="fa-solid fa-circle-info"></i>
+                You are viewing real-time risk calculations. As a Risk Analyst, report generation and filing controls
+                are restricted.
+            </div>
+
+            <!-- Risk KPIs -->
+            <div class="kpi-grid">
+                <div class="kpi-card" style="border-top: 4px solid var(--primary-color);">
+                    <div class="kpi-header">
+                        <span class="kpi-title">Total Risk Weighted Assets (RWA)</span>
+                        <i class="fa-solid fa-scale-unbalanced text-light"></i>
+                    </div>
+                    <div class="kpi-value">₹ 4,520 Cr</div>
+                    <div class="kpi-desc">
+                        <span class="text-danger"><i class="fa-solid fa-arrow-trend-up"></i> +2.4%</span> since Q3 2025
+                    </div>
+                </div>
+                <div class="kpi-card" style="border-top: 4px solid var(--accent-color);">
+                    <div class="kpi-header">
+                        <span class="kpi-title">Capital Adequacy Ratio (CRAR)</span>
+                        <i class="fa-solid fa-percent text-light"></i>
+                    </div>
+                    <div class="kpi-value">13.8%</div>
+                    <div class="kpi-desc">
+                        <span class="text-success"><i class="fa-solid fa-check"></i> Compliant</span> (RBI Min: 11.5%)
+                    </div>
+                </div>
+                <div class="kpi-card" style="border-top: 4px solid var(--secondary-color);">
+                    <div class="kpi-header">
+                        <span class="kpi-title">Liquidity Coverage Ratio (LCR)</span>
+                        <i class="fa-solid fa-droplet text-light"></i>
+                    </div>
+                    <div class="kpi-value">124.5%</div>
+                    <div class="kpi-desc">
+                        <span class="text-success"><i class="fa-solid fa-check"></i> Compliant</span> (RBI Min: 100%)
+                    </div>
+                </div>
+                <div class="kpi-card" style="border-top: 4px solid var(--warning);">
+                    <div class="kpi-header">
+                        <span class="kpi-title">Largest Counterparty Exp.</span>
+                        <i class="fa-solid fa-user-shield text-light"></i>
+                    </div>
+                    <div class="kpi-value">18.2%</div>
+                    <div class="kpi-desc">
+                        <span class="text-danger">Warning</span> (Nearing 20% Limit)
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row 1 -->
+            <div class="dashboard-row">
+                <!-- RWA Breakdown by asset category -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><i class="fa-solid fa-chart-pie"></i> RWA Calculation Breakdown</div>
+                    </div>
+                    <div class="panel-body" style="flex-direction: row; gap: 2rem; align-items: center;">
+                        <div class="donut-container">
+                            <div class="donut-hole">
+                                <span class="donut-label">Total RWA</span>
+                                <span class="donut-value">100%</span>
+                            </div>
+                        </div>
+                        <div class="legend-container" style="flex: 1; margin-top: 0;">
+                            <div class="legend-item">
+                                <span class="legend-color" style="background-color: var(--primary-color);"></span>
+                                <span style="flex: 1; font-weight: 500;">Credit Risk</span>
+                                <span style="font-weight: 600;">55%</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color" style="background-color: var(--secondary-color);"></span>
+                                <span style="flex: 1; font-weight: 500;">Market Risk</span>
+                                <span style="font-weight: 600;">30%</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color" style="background-color: var(--warning);"></span>
+                                <span style="flex: 1; font-weight: 500;">Operational Risk</span>
+                                <span style="font-weight: 600;">15%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Exposure Concentration Chart -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><i class="fa-solid fa-users"></i> Large Exposure Concentration by
+                            Counterparty</div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="chart-bar-wrapper">
+                            <div class="chart-row">
+                                <div class="chart-label">Reliance Ind Ltd</div>
+                                <div class="chart-bar-container">
+                                    <div class="chart-bar bar-dark" style="width: 91%;">18.2%</div>
+                                </div>
+                            </div>
+                            <div class="chart-row">
+                                <div class="chart-label">Tata Motors Ltd</div>
+                                <div class="chart-bar-container">
+                                    <div class="chart-bar bar-blue" style="width: 75%;">15.0%</div>
+                                </div>
+                            </div>
+                            <div class="chart-row">
+                                <div class="chart-label">HDFC Bank Ltd</div>
+                                <div class="chart-bar-container">
+                                    <div class="chart-bar bar-blue" style="width: 60%;">12.0%</div>
+                                </div>
+                            </div>
+                            <div class="chart-row">
+                                <div class="chart-label">L&T Infra</div>
+                                <div class="chart-bar-container">
+                                    <div class="chart-bar bar-blue" style="width: 42%;">8.4%</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="font-size: 0.75rem; color: var(--text-light); margin-top: 1rem; text-align: right;">
+                            RBI Limit: 20% of Tier 1 Capital
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row 2 -->
+            <div class="dashboard-row">
+                <!-- Data Table for Capital Adequacy -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><i class="fa-solid fa-table-list"></i> Capital Adequacy Trend History
+                        </div>
+                    </div>
+                    <div class="panel-body" style="padding: 0;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Quarter</th>
+                                    <th class="number">Tier 1 Capital (Cr)</th>
+                                    <th class="number">Tier 2 Capital (Cr)</th>
+                                    <th class="number">Total RWA (Cr)</th>
+                                    <th class="number">CRAR (%)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>Q4 2025</strong></td>
+                                    <td class="number">₹ 524.32</td>
+                                    <td class="number">₹ 100.20</td>
+                                    <td class="number">₹ 4,520.00</td>
+                                    <td class="number" style="color: var(--accent-color);">13.82%</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Q3 2025</strong></td>
+                                    <td class="number">₹ 510.10</td>
+                                    <td class="number">₹ 98.40</td>
+                                    <td class="number">₹ 4,414.00</td>
+                                    <td class="number" style="color: var(--accent-color);">13.78%</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Q2 2025</strong></td>
+                                    <td class="number">₹ 490.50</td>
+                                    <td class="number">₹ 95.10</td>
+                                    <td class="number">₹ 4,300.00</td>
+                                    <td class="number" style="color: var(--accent-color);">13.61%</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Q1 2025</strong></td>
+                                    <td class="number">₹ 480.00</td>
+                                    <td class="number">₹ 95.00</td>
+                                    <td class="number">₹ 4,200.00</td>
+                                    <td class="number" style="color: var(--warning);">13.69%</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Liquidity Coverage Trend -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><i class="fa-solid fa-chart-line"></i> Liquidity Coverage Monitoring
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="line-chart"></div>
+                        <div
+                            style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-light); margin-top: 0.5rem; border-top: 1px solid var(--border-color); padding-top: 0.5rem;">
+                            <span>Oct</span>
+                            <span>Nov</span>
+                            <span>Dec</span>
+                            <span>Jan</span>
+                            <span>Feb</span>
+                            <span>Current</span>
+                        </div>
+                        <div style="margin-top: 1rem; text-align: center; font-size: 0.85rem;">
+                            Consolidated 30-Day Stress Liquidity Outlook is <strong>Stable</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        // Check for correct role mapping (mock security for statically hosted page)
+        const role = localStorage.getItem('userRole');
+        if (role && role !== 'RISK_ANALYST' && role !== 'REGTECH_ADMIN') {
+            alert('Access Denied. You do not have Risk Analyst privileges.');
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+
+</html>

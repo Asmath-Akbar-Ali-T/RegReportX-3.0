@@ -1,0 +1,95 @@
+/* ============================================
+   RegReportX - Clean Corporate Design System
+   ============================================ */
+
+:root {
+  /* Primary - Corporate Blue */
+  --primary: #004b8d;
+  --primary-dark: #003366;
+  --primary-light: #0066b3;
+  --primary-50: #e6f0fa;
+  --primary-100: #cce0f5;
+
+  /* Accent */
+  --accent: #e63946;
+  --accent-hover: #d62839;
+
+  /* Semantic Colors */
+  --success: #28a745;
+  --warning: #f0ad4e;
+  --danger: #dc3545;
+  --info: #17a2b8;
+
+  /* Surfaces */
+  --white: #ffffff;
+  --bg: #f4f6f9;
+  --bg-alt: #eef1f5;
+  --card-bg: #ffffff;
+  --border: #dde2e8;
+  --border-light: #e9ecef;
+
+  /* Text */
+  --text: #2c3e50;
+  --text-secondary: #6c757d;
+  --text-muted: #9ca3af;
+  --text-on-primary: #ffffff;
+
+  /* Spacing */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.1);
+
+  /* Transition */
+  --transition-fast: 150ms ease;
+  --transition-base: 250ms ease;
+}
+
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: #f1f1f1; }
+::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }

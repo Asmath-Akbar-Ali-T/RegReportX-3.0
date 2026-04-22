@@ -1,0 +1,435 @@
+<div class="admin-layout">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <a routerLink="/" class="sidebar-brand">
+        <div class="brand-icon"><span class="material-icons">assessment</span></div>
+        <span class="brand-name">RegReportX</span>
+      </a>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-item" [class.active]="activeTab === 'dashboard'" (click)="switchTab('dashboard')">
+        <span class="material-icons">dashboard</span><span>Dashboard</span>
+      </button>
+      <button class="nav-item" [class.active]="activeTab === 'upload'" (click)="switchTab('upload')">
+        <span class="material-icons">upload_file</span><span>CSV Upload</span>
+      </button>
+      <button class="nav-item" [class.active]="activeTab === 'ingestion'" (click)="switchTab('ingestion')">
+        <span class="material-icons">sync</span><span>Data Ingestion</span>
+      </button>
+      <button class="nav-item" [class.active]="activeTab === 'raw_records'" (click)="switchTab('raw_records')">
+        <span class="material-icons">layers</span><span>Raw Records</span>
+      </button>
+      <button class="nav-item" [class.active]="activeTab === 'view_data'" (click)="switchTab('view_data')">
+        <span class="material-icons">storage</span><span>View Data</span>
+      </button>
+      <button class="nav-item" [class.active]="activeTab === 'audit'" (click)="switchTab('audit')">
+        <span class="material-icons">history</span><span>Audit Log</span>
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar"><span class="material-icons">person</span></div>
+        <div class="user-details"><span class="user-name">{{ username }}</span><span class="user-role">Operations Officer</span></div>
+      </div>
+      <button class="logout-btn" (click)="logout()"><span class="material-icons">logout</span><span>Logout</span></button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    @if (notification) {
+      <div class="toast" [class.toast-success]="notification.type === 'success'" [class.toast-error]="notification.type === 'error'">
+        <span class="material-icons">{{ notification.type === 'success' ? 'check_circle' : 'error' }}</span>
+        <span>{{ notification.message }}</span>
+      </div>
+    }
+
+    <!-- ==================== RESULT MODAL ==================== -->
+    @if (uploadModal.visible) {
+      <div class="modal-overlay" (click)="closeUploadModal()">
+        <div class="modal-box" (click)="$event.stopPropagation()">
+          <div class="modal-icon" [class.modal-icon-success]="uploadModal.success" [class.modal-icon-error]="!uploadModal.success">
+            <span class="material-icons">{{ uploadModal.success ? 'check_circle' : 'error' }}</span>
+          </div>
+          <h2 class="modal-title">{{ uploadModal.success ? 'Success!' : 'Failed' }}</h2>
+          <p class="modal-type">{{ uploadModal.type }}</p>
+          <p class="modal-message">{{ uploadModal.message }}</p>
+          <button class="action-btn primary modal-close-btn" (click)="closeUploadModal()">
+            {{ uploadModal.success ? 'OK' : 'Close' }}
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- ==================== DASHBOARD ==================== -->
+    @if (activeTab === 'dashboard') {
+      <div class="content-header">
+        <div>
+          <h1>Operations Dashboard</h1>
+          <p>Data pipeline monitoring &amp; source record statistics</p>
+        </div>
+        <button class="action-btn outline" (click)="loadDashboardData()" [disabled]="isLoadingBatches">
+          <span class="material-icons">refresh</span> {{ isLoadingBatches ? 'Loading...' : 'Refresh' }}
+        </button>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card blue">
+          <div class="stat-icon"><span class="material-icons">account_balance</span></div>
+          <div class="stat-content">
+            <h3>Total Loans</h3>
+            <div class="stat-value">{{ totalLoans }}</div>
+            <div class="stat-sub">Loan records on file</div>
+          </div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-icon"><span class="material-icons">savings</span></div>
+          <div class="stat-content">
+            <h3>Total Deposits</h3>
+            <div class="stat-value">{{ totalDeposits }}</div>
+            <div class="stat-sub">Deposit records on file</div>
+          </div>
+        </div>
+        <div class="stat-card orange">
+          <div class="stat-icon"><span class="material-icons">trending_up</span></div>
+          <div class="stat-content">
+            <h3>Treasury Trades</h3>
+            <div class="stat-value">{{ totalTreasury }}</div>
+            <div class="stat-sub">Treasury trade records</div>
+          </div>
+        </div>
+        <div class="stat-card purple">
+          <div class="stat-icon"><span class="material-icons">receipt_long</span></div>
+          <div class="stat-content">
+            <h3>GL Entries</h3>
+            <div class="stat-value">{{ totalGl }}</div>
+            <div class="stat-sub">General ledger entries</div>
+          </div>
+        </div>
+      </div>
+      <div class="charts-grid">
+        <div class="card chart-card">
+          <h3><span class="material-icons">bar_chart</span> Source Data Volume</h3>
+          <div class="chart-wrapper"><canvas #statsChart></canvas></div>
+        </div>
+        <div class="card chart-card">
+          <h3><span class="material-icons">donut_large</span> Source Distribution</h3>
+          <div class="chart-wrapper"><canvas id="sourceDistChart"></canvas></div>
+        </div>
+        <div class="card chart-card">
+          <h3><span class="material-icons">pie_chart</span> Batch Status</h3>
+          <div class="chart-wrapper"><canvas id="batchStatusChart"></canvas></div>
+        </div>
+      </div>
+    }
+
+    <!-- ==================== CSV UPLOAD ==================== -->
+    @if (activeTab === 'upload') {
+      <div class="content-header">
+        <div>
+          <h1>CSV Upload</h1>
+          <p>Upload source data files for Loans, Deposits, Treasury, and General Ledger</p>
+        </div>
+      </div>
+      <div class="upload-grid">
+        @for (type of uploadTypes; track type) {
+          <div class="card upload-card">
+            <h3>{{ type | uppercase }} CSV</h3>
+            <div class="upload-zone" [class.has-file]="uploadFiles[type]">
+              <input type="file" [id]="'file-'+type" accept=".csv"
+                     (change)="onFileSelected($event, type)" class="file-input" />
+              <label [for]="'file-'+type" class="file-label">
+                <span class="material-icons">{{ uploadFiles[type] ? 'description' : 'cloud_upload' }}</span>
+                <span>{{ uploadFiles[type]?.name || 'Click to select a CSV file' }}</span>
+              </label>
+            </div>
+            <div class="upload-actions">
+              <button class="action-btn primary flex-1"
+                      (click)="uploadCsv(type)"
+                      [disabled]="!uploadFiles[type] || uploading[type]">
+                {{ uploading[type] ? 'Uploading...' : 'Upload' }}
+              </button>
+              @if (uploadFiles[type] && !uploading[type]) {
+                <button class="action-btn outline" (click)="clearFile(type)" title="Remove file">
+                  <span class="material-icons">close</span>
+                </button>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- ==================== DATA INGESTION ==================== -->
+    @if (activeTab === 'ingestion') {
+      <div class="content-header">
+        <div>
+          <h1>Data Ingestion</h1>
+          <p>Run the ingestion pipeline and monitor batch status</p>
+        </div>
+        <button class="action-btn success" (click)="runIngestion()" [disabled]="isIngesting">
+          {{ isIngesting ? 'Running...' : 'Run Pipeline' }}
+        </button>
+      </div>
+
+      @if (showIngestionResult && ingestionResult) {
+        <div class="card result-card" [class.success]="ingestionResult.success" [class.error]="!ingestionResult.success">
+          <div class="result-header">
+            <span class="material-icons">{{ ingestionResult.success ? 'check_circle' : 'error' }}</span>
+            <h3>{{ ingestionResult.success ? 'Success' : 'Failed' }}</h3>
+          </div>
+          <p class="result-message">{{ ingestionResult.message }}</p>
+          @if (ingestionResult.recordsCount) {
+            <p class="result-details">Total Records Processed: <strong>{{ ingestionResult.recordsCount }}</strong></p>
+          }
+        </div>
+      }
+
+      <div class="card">
+        <div class="table-container">
+          <table>
+            <thead><tr><th>ID</th><th>Source</th><th>Date</th><th>Count</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody>
+              @for (batch of ingestionBatches; track batch.batchId) {
+                <tr>
+                  <td><span class="id-badge">{{ batch.batchId }}</span></td>
+                  <td>{{ batch.source.name }}</td>
+                  <td>{{ batch.ingestedDate | date }}</td>
+                  <td>{{ batch.rowCount }}</td>
+                  <td><span class="status-badge" [class]="getStatusClass(batch.status)">{{ batch.status }}</span></td>
+                  <td><button class="action-btn outline small" (click)="loadRawRecordsAction(batch.batchId)">View</button></td>
+                </tr>
+              }
+              @if (ingestionBatches.length === 0 && !isLoadingBatches) {
+                <tr><td colspan="6" class="empty-state"><span class="material-icons">sync</span><p>No batches found. Run the ingestion pipeline to create batches.</p></td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+
+    <!-- ==================== RAW RECORDS ==================== -->
+    @if (activeTab === 'raw_records') {
+      <div class="content-header">
+        <div>
+          <h1>Raw Records Conversion</h1>
+          <p>Convert Raw Data Batches to Processable Records</p>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card blue">
+          <div class="stat-icon"><span class="material-icons">inventory_2</span></div>
+          <div class="stat-content"><h3>Total Batches</h3><div class="stat-value">{{ totalBatches }}</div></div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-icon"><span class="material-icons">check_circle</span></div>
+          <div class="stat-content"><h3>Completed</h3><div class="stat-value">{{ completedBatches }}</div></div>
+        </div>
+        <div class="stat-card orange">
+          <div class="stat-icon"><span class="material-icons">dataset</span></div>
+          <div class="stat-content"><h3>Total Records</h3><div class="stat-value">{{ totalRecords }}</div></div>
+        </div>
+        <div class="stat-card purple">
+          <div class="stat-icon"><span class="material-icons">source</span></div>
+          <div class="stat-content"><h3>Data Sources</h3><div class="stat-value">4</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="table-container">
+          <table>
+            <thead><tr><th>Batch ID</th><th>Source</th><th>Date</th><th>Records</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody>
+              @for (batch of ingestionBatches; track batch.batchId) {
+                <tr>
+                  <td><span class="id-badge">{{ batch.batchId }}</span></td>
+                  <td>{{ batch.source.name }}</td>
+                  <td>{{ batch.ingestedDate | date }}</td>
+                  <td>{{ batch.rowCount }}</td>
+                  <td><span class="status-badge" [class]="getStatusClass(batch.status)">{{ batch.status }}</span></td>
+                  <td>
+                    <button class="action-btn small"
+                            [class.success]="isBatchConverted(batch)"
+                            [class.primary]="!isBatchConverted(batch)"
+                            (click)="loadRawRecordsForConversion(batch.batchId)"
+                            [disabled]="isBatchConverted(batch) || isConvertingRawRecords">
+                      @if (isBatchConverted(batch)) {
+                        <span class="material-icons" style="font-size:15px">check_circle</span> Converted
+                      } @else if (convertingBatchId === batch.batchId) {
+                        Converting...
+                      } @else {
+                        Convert
+                      }
+                    </button>
+                  </td>
+                </tr>
+              }
+              @if (ingestionBatches.length === 0) {
+                <tr><td colspan="6" class="empty-state"><span class="material-icons">layers</span><p>No batches found. Run Data Ingestion first.</p></td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+
+    <!-- ==================== VIEW DATA ==================== -->
+    @if (activeTab === 'view_data') {
+      <div class="content-header">
+        <div>
+          <h1>View Data</h1>
+          <p>Browse source records across all data domains</p>
+        </div>
+      </div>
+      <div class="card selector-card">
+        <div class="template-chips">
+          <button class="chip" [class.chip-active]="activeDataTab === 'loans'" (click)="switchDataTab('loans')">Loans</button>
+          <button class="chip" [class.chip-active]="activeDataTab === 'deposits'" (click)="switchDataTab('deposits')">Deposits</button>
+          <button class="chip" [class.chip-active]="activeDataTab === 'treasury'" (click)="switchDataTab('treasury')">Treasury</button>
+          <button class="chip" [class.chip-active]="activeDataTab === 'gl'" (click)="switchDataTab('gl')">GL</button>
+          <button class="chip" [class.chip-active]="activeDataTab === 'raw'" (click)="switchDataTab('raw')">Raw</button>
+        </div>
+      </div>
+
+      @if (activeDataTab === 'raw') {
+        <div class="card selector-card mt-2">
+          <div class="fetch-row">
+            <input type="number" [(ngModel)]="selectedBatchIdForRaw" placeholder="Batch ID" class="inline-input" />
+            <button class="action-btn primary" (click)="fetchRawRecordsByBatch()">Fetch</button>
+          </div>
+        </div>
+      }
+
+      <div class="card">
+        @if (isLoadingData) {
+          <div class="table-loading"><p>Loading data...</p></div>
+        }
+        @if (!isLoadingData) {
+          <div class="table-container">
+            <table>
+              <thead>
+                @if (activeDataTab === 'loans') { <tr><th>Loan ID</th><th>Customer ID</th><th>Branch</th><th>Loan Type</th><th>Amount</th><th>Interest Rate</th><th>Currency</th><th>Status</th></tr> }
+                @if (activeDataTab === 'deposits') { <tr><th>Deposit ID</th><th>Customer ID</th><th>Branch</th><th>Deposit Type</th><th>Amount</th><th>Interest Rate</th><th>Open Date</th><th>Maturity Date</th></tr> }
+                @if (activeDataTab === 'treasury') { <tr><th>Trade ID</th><th>Instrument</th><th>Counterparty</th><th>Notional</th><th>Currency</th><th>Trade Date</th><th>Maturity Date</th></tr> }
+                @if (activeDataTab === 'gl') { <tr><th>GL ID</th><th>Account Number</th><th>Branch</th><th>Account Type</th><th>Debit</th><th>Credit</th><th>Currency</th><th>Transaction Date</th></tr> }
+                @if (activeDataTab === 'raw') { <tr><th>ID</th><th>Batch</th><th>Payload</th><th>Date</th></tr> }
+              </thead>
+              <tbody>
+                @for (item of paginatedData; track $index) {
+                  <tr>
+                    @if (activeDataTab === 'loans') { <td>{{item.loanId}}</td><td>{{item.customerId}}</td><td>{{item.branchId}}</td><td>{{item.loanType}}</td><td>{{item.loanAmount | currency}}</td><td>{{item.interestRate}}%</td><td>{{item.currency}}</td><td><span class="status-badge" [class]="getStatusClass(item.status)">{{item.status}}</span></td> }
+                    @if (activeDataTab === 'deposits') { <td>{{item.depositId}}</td><td>{{item.customerId}}</td><td>{{item.branchId}}</td><td>{{item.depositType}}</td><td>{{item.amount | currency}}</td><td>{{item.interestRate}}%</td><td>{{item.openDate | date}}</td><td>{{item.maturityDate | date}}</td> }
+                    @if (activeDataTab === 'treasury') { <td>{{item.tradeId}}</td><td>{{item.instrument}}</td><td>{{item.counterparty}}</td><td>{{item.notional | currency}}</td><td>{{item.currency}}</td><td>{{item.tradeDate | date}}</td><td>{{item.maturityDate | date}}</td> }
+                    @if (activeDataTab === 'gl') { <td>{{item.glId}}</td><td>{{item.accountNumber}}</td><td>{{item.branchId}}</td><td>{{item.accountType}}</td><td>{{item.debit | currency}}</td><td>{{item.credit | currency}}</td><td>{{item.currency}}</td><td>{{item.transactionDate | date}}</td> }
+                    @if (activeDataTab === 'raw') { <td>{{item.rawRecordId}}</td><td>{{item.batch?.batchId}}</td><td class="formula-cell">{{item.payloadJson | slice:0:100}}...</td><td>{{item.recordDate | date}}</td> }
+                  </tr>
+                }
+                @if (paginatedData.length === 0) {
+                  <tr><td colspan="8" class="empty-state"><span class="material-icons">storage</span><p>No data found.</p></td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          @if (totalPages > 1) {
+            <div class="pagination-footer">
+              <span class="page-info">Page {{currentPage}} of {{totalPages}} &middot; {{ totalItemCount }} records</span>
+              <div class="page-controls">
+                <button class="action-btn outline small" (click)="prevPage()" [disabled]="currentPage === 1">
+                  <span class="material-icons">chevron_left</span> Prev
+                </button>
+                <button class="action-btn outline small" (click)="nextPage()" [disabled]="currentPage === totalPages">
+                  Next <span class="material-icons">chevron_right</span>
+                </button>
+              </div>
+            </div>
+          }
+        }
+      </div>
+    }
+
+    <!-- ==================== AUDIT LOG ==================== -->
+    @if (activeTab === 'audit') {
+      <div class="content-header">
+        <div>
+          <h1>Audit Log</h1>
+          <p>Complete activity trail of all system actions</p>
+        </div>
+        <div class="audit-header-actions">
+          <div class="audit-search-wrapper">
+            <span class="material-icons audit-search-icon">search</span>
+            <input type="text" class="audit-search-input" placeholder="Search actions, users..."
+              [(ngModel)]="auditSearchTerm" (ngModelChange)="onAuditSearch()" />
+          </div>
+          <button class="action-btn outline" (click)="loadAuditLogs()" [disabled]="isLoadingAudit">
+            <span class="material-icons">refresh</span> {{ isLoadingAudit ? 'Loading...' : 'Refresh' }}
+          </button>
+        </div>
+      </div>
+
+      <div class="card" style="border-left: 4px solid #6366f1;">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr><th>Timestamp</th><th>User</th><th>Action</th><th>Module</th><th>Details</th></tr>
+            </thead>
+            <tbody>
+              @for (log of paginatedAuditLogs; track log.auditId) {
+                <tr class="audit-row">
+                  <td>
+                    <div class="audit-timestamp">
+                      <span class="material-icons audit-time-icon">schedule</span>
+                      <span>{{ log.timestamp | date:'medium' }}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="audit-user-cell">
+                      <div class="audit-user-avatar">
+                        {{ log.user?.name ? log.user?.name?.charAt(0)?.toUpperCase() : '?' }}
+                      </div>
+                      <div class="audit-user-info">
+                        <span class="audit-user-name">{{ log.user?.name || 'System' }}</span>
+                        <span class="audit-user-role">{{ log.user?.role || '' }}</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="audit-action-badge" [ngClass]="getActionClass(log.action)">
+                      <span class="material-icons">{{ getActionIcon(log.action) }}</span>
+                      {{ getActionLabel(log.action) }}
+                    </span>
+                  </td>
+                  <td><span class="type-badge">{{ log.resource }}</span></td>
+                  <td>
+                    <span class="audit-metadata" *ngIf="log.metadata">{{ log.metadata }}</span>
+                    <span class="audit-metadata audit-no-detail" *ngIf="!log.metadata">—</span>
+                  </td>
+                </tr>
+              }
+              @if (filteredAuditLogs.length === 0 && !isLoadingAudit) {
+                <tr><td colspan="5" class="empty-state">
+                  <span class="material-icons">history</span>
+                  @if (!auditSearchTerm) { <p>No audit logs recorded yet.</p> }
+                  @else { <p>No logs match your search.</p> }
+                </td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        @if (filteredAuditLogs.length > 0) {
+          <div class="pagination-footer">
+            <span class="page-info">Page {{ auditPage }} of {{ auditTotalPages }} &middot; {{ filteredAuditLogs.length }} records</span>
+            <div class="page-controls">
+              <button class="action-btn outline small" (click)="auditPrev()" [disabled]="auditPage === 1">
+                <span class="material-icons">chevron_left</span> Prev
+              </button>
+              <button class="action-btn outline small" (click)="auditNext()" [disabled]="auditPage === auditTotalPages">
+                Next <span class="material-icons">chevron_right</span>
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </main>
+
+</div>

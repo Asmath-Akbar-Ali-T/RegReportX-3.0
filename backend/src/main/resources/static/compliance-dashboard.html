@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compliance Analyst - RegReportX (RBI)</title>
+    <!-- Modern Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Config -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #0c2340;
+            /* Dark Blue */
+            --primary-light: #1a3a66;
+            --secondary-color: #2563eb;
+            --accent-color: #10b981;
+            --bg-color: #f3f4f6;
+            --sidebar-bg: #0c2340;
+            --card-bg: #ffffff;
+            --text-main: #1f2937;
+            --text-light: #6b7280;
+            --border-color: #e5e7eb;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --sidebar-width: 280px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--sidebar-bg);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            transition: all 0.3s;
+            z-index: 100;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .sidebar-header h2 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar-menu {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem 0;
+            list-style: none;
+        }
+
+        .menu-item {
+            padding: 0 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .menu-link {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.875rem 1rem;
+            color: #cbd5e1;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+        }
+
+        .menu-link:hover,
+        .menu-link.active {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .menu-link i {
+            width: 20px;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+
+        .sidebar-footer {
+            padding: 1.5rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .logout-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: #cbd5e1;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+            cursor: pointer;
+        }
+
+        .logout-btn:hover {
+            color: var(--danger);
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background-color: var(--bg-color);
+        }
+
+        .topbar {
+            height: 70px;
+            background-color: var(--card-bg);
+            padding: 0 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .topbar-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+
+        .user-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .user-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .user-role {
+            font-size: 0.8rem;
+            color: var(--text-light);
+        }
+
+        /* Dashboard Content */
+        .dashboard-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem;
+        }
+
+        /* KPI Cards */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .kpi-card {
+            background-color: var(--card-bg);
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02), border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            border-left: 4px solid var(--primary-color);
+            transition: transform 0.2s;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        .kpi-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .kpi-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .kpi-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+
+        .kpi-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 0.5rem;
+        }
+
+        .kpi-desc {
+            font-size: 0.85rem;
+            color: var(--text-light);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .kpi-status-danger {
+            color: var(--danger);
+            font-weight: 600;
+        }
+
+        .kpi-status-warning {
+            color: var(--warning);
+            font-weight: 600;
+        }
+
+        .kpi-status-success {
+            color: var(--accent-color);
+            font-weight: 600;
+        }
+
+        /* Icon Colors */
+        .icon-blue {
+            background-color: rgba(37, 99, 235, 0.1);
+            color: var(--secondary-color);
+        }
+
+        .icon-red {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+        }
+
+        .icon-green {
+            background-color: rgba(16, 185, 129, 0.1);
+            color: var(--accent-color);
+        }
+
+        .icon-orange {
+            background-color: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
+        }
+
+        /* Complex Grid Layout */
+        .dashboard-row {
+            display: grid;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .grid-2-col {
+            grid-template-columns: 2fr 1fr;
+        }
+
+        .panel {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #fafafa;
+        }
+
+        .panel-title {
+            font-weight: 600;
+            font-size: 1.05rem;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .panel-body {
+            padding: 1.5rem;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        /* Tables */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .data-table th {
+            background-color: #f8fafc;
+            font-weight: 600;
+            color: var(--text-light);
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.5px;
+        }
+
+        .data-table tbody tr:hover {
+            background-color: #f1f5f9;
+        }
+
+        .data-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-danger {
+            background-color: var(--danger);
+            color: white;
+        }
+
+        .badge-warning {
+            background-color: var(--warning);
+            color: white;
+        }
+
+        .badge-success {
+            background-color: var(--accent-color);
+            color: white;
+        }
+
+        .badge-info {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            border-color: var(--border-color);
+            color: var(--text-main);
+        }
+
+        .btn-outline:hover {
+            background-color: #f1f5f9;
+            border-color: var(--secondary-color);
+            color: var(--secondary-color);
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-light);
+        }
+
+        /* Activity Timeline */
+        .timeline {
+            position: relative;
+            padding-left: 2rem;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 7px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background-color: var(--border-color);
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-bottom: 1.5rem;
+        }
+
+        .timeline-item:last-child {
+            padding-bottom: 0;
+        }
+
+        .timeline-marker {
+            position: absolute;
+            left: -2rem;
+            top: 0.25rem;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background-color: var(--card-bg);
+            border: 3px solid var(--primary-color);
+            z-index: 1;
+        }
+
+        .timeline-content h4 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .timeline-content p {
+            font-size: 0.85rem;
+            color: var(--text-light);
+            margin-bottom: 0.25rem;
+        }
+
+        .timeline-time {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            font-weight: 500;
+        }
+
+        /* Progress Bar for Breach Alerts */
+        .progress-wrapper {
+            margin-bottom: 1.25rem;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 0.4rem;
+        }
+
+        .progress-track {
+            width: 100%;
+            height: 8px;
+            background-color: var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+        }
+
+        .fill-danger {
+            background-color: var(--danger);
+        }
+
+        .fill-warning {
+            background-color: var(--warning);
+        }
+
+        .fill-success {
+            background-color: var(--accent-color);
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Sidebar for Compliance Analyst -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <i class="fa-solid fa-building-columns" style="font-size: 1.5rem; color: #10b981;"></i>
+            <h2>RegReportX</h2>
+        </div>
+
+        <ul class="sidebar-menu">
+            <li class="menu-item"><a href="#" class="menu-link active"><i class="fa-solid fa-chart-line"></i>
+                    Dashboard</a></li>
+            <li class="menu-item"><a href="#" class="menu-link"><i class="fa-solid fa-database"></i> Data Quality
+                    Console</a></li>
+            <li class="menu-item"><a href="#" class="menu-link"><i class="fa-solid fa-triangle-exclamation"></i>
+                    Exception Queue</a></li>
+            <li class="menu-item"><a href="#" class="menu-link"><i class="fa-solid fa-shield-halved"></i> Breach
+                    Monitoring</a></li>
+            <li class="menu-item"><a href="#" class="menu-link"><i class="fa-solid fa-file-signature"></i> Filing
+                    Workflow</a></li>
+            <li class="menu-item"><a href="#" class="menu-link"><i class="fa-solid fa-list-check"></i> Audit Trail
+                    View</a></li>
+        </ul>
+
+        <div class="sidebar-footer">
+            <a href="index.html" class="logout-btn" onclick="localStorage.removeItem('userRole')">
+                <i class="fa-solid fa-arrow-right-from-bracket"></i> Secure Logout
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Topbar -->
+        <header class="topbar">
+            <div class="topbar-title">Compliance Operations Center (RBI)</div>
+            <div class="user-profile">
+                <i class="fa-regular fa-bell"
+                    style="font-size: 1.25rem; color: var(--text-light); cursor: pointer; position: relative;">
+                    <span
+                        style="position:absolute; top:-4px; right:-2px; background:red; height:8px; width:8px; border-radius:50%;"></span>
+                </i>
+                <div style="width: 1px; height: 30px; background-color: var(--border-color); margin: 0 0.5rem;"></div>
+                <div class="user-info">
+                    <span class="user-name">Clemence Analyst</span>
+                    <span class="user-role">Compliance Analyst</span>
+                </div>
+                <div class="avatar">CA</div>
+            </div>
+        </header>
+
+        <!-- Dashboard Widgets -->
+        <div class="dashboard-container">
+
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span class="kpi-title">Validation Issues</span>
+                        <div class="kpi-icon icon-red"><i class="fa-solid fa-xmark"></i></div>
+                    </div>
+                    <div class="kpi-value">42</div>
+                    <div class="kpi-desc">
+                        <span class="kpi-status-danger"><i class="fa-solid fa-arrow-up"></i> +5%</span> vs last filing
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span class="kpi-title">Open Exceptions</span>
+                        <div class="kpi-icon icon-orange"><i class="fa-solid fa-bolt"></i></div>
+                    </div>
+                    <div class="kpi-value">12</div>
+                    <div class="kpi-desc">
+                        <span class="kpi-status-warning">3 Critical Severity</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span class="kpi-title">RBI Breach Alerts</span>
+                        <div class="kpi-icon icon-blue"><i class="fa-solid fa-landmark"></i></div>
+                    </div>
+                    <div class="kpi-value">2</div>
+                    <div class="kpi-desc">
+                        <span class="kpi-status-danger">CRAR Limit Warning</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span class="kpi-title">Awaiting Validation</span>
+                        <div class="kpi-icon icon-green"><i class="fa-solid fa-file-circle-check"></i></div>
+                    </div>
+                    <div class="kpi-value">5</div>
+                    <div class="kpi-desc">
+                        <span class="kpi-status-success">Due in 48 hours</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dashboard-row grid-2-col">
+                <!-- Data Validation Results -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><i class="fa-solid fa-table-list"></i> Exception Investigation Queue
+                        </div>
+                        <button class="btn-sm btn-outline">View All</button>
+                    </div>
+                    <div class="panel-body" style="padding: 0;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Exception ID</th>
+                                    <th>Dataset</th>
+                                    <th>Issue Type</th>
+                                    <th>Severity</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td style="font-weight: 600;">EX-9041</td>
+                                    <td>Liquidity Data</td>
+                                    <td>Missing Counterparty LEI</td>
+                                    <td><span class="badge badge-danger">High</span></td>
+                                    <td><button class="btn-sm btn-primary">Investigate</button></td>
+                                </tr>
+                                <tr>
+                                    <td style="font-weight: 600;">EX-9042</td>
+                                    <td>Credit Risk</td>
+                                    <td>Invalid Collateral Value</td>
+                                    <td><span class="badge badge-danger">High</span></td>
+                                    <td><button class="btn-sm btn-primary">Investigate</button></td>
+                                </tr>
+                                <tr>
+                                    <td style="font-weight: 600;">EX-9046</td>
+                                    <td>Large Exposures</td>
+                                    <td>Format Mismatch (Amount)</td>
+                                    <td><span class="badge badge-warning">Medium</span></td>
+                                    <td><button class="btn-sm btn-primary">Investigate</button></td>
+                                </tr>
+                                <tr>
+                                    <td style="font-weight: 600;">EX-9051</td>
+                                    <td>Market Risk</td>
+                                    <td>Negative Interest Rate Value</td>
+                                    <td><span class="badge badge-info">Low</span></td>
+                                    <td><button class="btn-sm btn-primary">Investigate</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- RBI Regulatory Breach Monitoring -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><i class="fa-solid fa-chart-pie"></i> RBI Breach Monitoring (CRAR &
+                            LCR)</div>
+                    </div>
+                    <div class="panel-body">
+                        <!-- CRAR -->
+                        <div class="progress-wrapper">
+                            <div class="progress-header">
+                                <span>Capital to Risk Weighted Assets (CRAR)</span>
+                                <span style="color: var(--danger);">10.1% / 11.5% limit</span>
+                            </div>
+                            <div class="progress-track">
+                                <div class="progress-fill fill-danger" style="width: 87.8%;"></div>
+                            </div>
+                            <p style="font-size: 0.75rem; color: var(--text-light); margin-top: 0.25rem;">Alert: Falls
+                                below RBI mandate 2026</p>
+                        </div>
+
+                        <!-- LCR -->
+                        <div class="progress-wrapper">
+                            <div class="progress-header">
+                                <span>Liquidity Coverage Ratio (LCR)</span>
+                                <span>115% / 100% limit</span>
+                            </div>
+                            <div class="progress-track">
+                                <div class="progress-fill fill-success" style="width: 100%;"></div>
+                            </div>
+                            <p style="font-size: 0.75rem; color: var(--text-light); margin-top: 0.25rem;">Status:
+                                Healthy</p>
+                        </div>
+
+                        <!-- Large Exposures -->
+                        <div class="progress-wrapper">
+                            <div class="progress-header">
+                                <span>Large Exposure (Single Counterparty)</span>
+                                <span style="color: var(--warning);">18.5% / 20.0% max</span>
+                            </div>
+                            <div class="progress-track">
+                                <div class="progress-fill fill-warning" style="width: 92.5%;"></div>
+                            </div>
+                            <p style="font-size: 0.75rem; color: var(--text-light); margin-top: 0.25rem;">Warning:
+                                Approaching concentration limits</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reports Awaiting Validation & Audit -->
+            <div class="dashboard-row grid-2-col">
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><i class="fa-solid fa-file-contract"></i> Reports Awaiting Validation
+                        </div>
+                    </div>
+                    <div class="panel-body" style="padding: 0;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Report Code</th>
+                                    <th>Description</th>
+                                    <th>Deadline</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>RCA3</strong></td>
+                                    <td>Basel III Capital Adequacy</td>
+                                    <td>15 Mar 2026</td>
+                                    <td><span class="badge badge-warning">Pending Review</span></td>
+                                    <td><button class="btn-sm btn-outline">Validate</button></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>RLR1</strong></td>
+                                    <td>Liquidity Return</td>
+                                    <td>15 Mar 2026</td>
+                                    <td><span class="badge badge-warning">Pending Review</span></td>
+                                    <td><button class="btn-sm btn-outline">Validate</button></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>ALE1</strong></td>
+                                    <td>Large Exposures Framework</td>
+                                    <td>31 Mar 2026</td>
+                                    <td><span class="badge badge-success">Data Ready</span></td>
+                                    <td><button class="btn-sm btn-outline">Validate</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><i class="fa-solid fa-clock-rotate-left"></i> Recent Audit Log</div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="timeline">
+                            <div class="timeline-item">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <h4>Exception Resolved (EX-9038)</h4>
+                                    <p>Counterparty LEI mapping overridden by Admin</p>
+                                    <span class="timeline-time">Today, 09:41 AM</span>
+                                </div>
+                            </div>
+                            <div class="timeline-item">
+                                <div class="timeline-marker" style="border-color: var(--warning);"></div>
+                                <div class="timeline-content">
+                                    <h4>Validation Rule Triggered</h4>
+                                    <p>Unsecured Exposure threshold breached</p>
+                                    <span class="timeline-time">Yesterday, 16:30 PM</span>
+                                </div>
+                            </div>
+                            <div class="timeline-item">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <h4>Report RCA3 Drafted</h4>
+                                    <p>Moved to validation queue by Reporting team</p>
+                                    <span class="timeline-time">Yesterday, 14:15 PM</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+    <script>
+        // Check for correct role mapping (mock security for statically hosted page)
+        const role = localStorage.getItem('userRole');
+        if (role && role !== 'COMPLIANCE_ANALYST' && role !== 'REGTECH_ADMIN') {
+            alert('Access Denied. You do not have Compliance Analyst privileges.');
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+
+</html>

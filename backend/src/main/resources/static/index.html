@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RegReportX - Login</title>
+    <style>
+        /* Modern CSS Baseline and Variables for Enterprise Theme */
+        :root {
+            --primary-color: #0c2340;
+            /* Dark Blue */
+            --primary-hover: #153a66;
+            --background-color: #f4f6f8;
+            /* Light Grey */
+            --card-bg: #ffffff;
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
+            --border-color: #d1d5db;
+            --error-color: #dc2626;
+            --focus-ring: rgba(12, 35, 64, 0.15);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Container for vertical centering */
+        .main-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        /* Centered login card with subtle shadow and rounded corners */
+        .login-card {
+            background-color: var(--card-bg);
+            width: 100%;
+            max-width: 440px;
+            border-radius: 8px;
+            /* 8px rounded corners as requested */
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05), 0 4px 10px rgba(0, 0, 0, 0.03);
+            padding: 2.5rem;
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .login-header h1 {
+            font-size: 1.75rem;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .login-header p {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-main);
+        }
+
+        /* Form Controls Styling */
+        .form-control {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.95rem;
+            color: var(--text-main);
+            transition: all 0.2s ease;
+            background-color: #fff;
+            font-family: inherit;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px var(--focus-ring);
+        }
+
+        /* Custom styling for select to make it look consistent */
+        select.form-control {
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            background-size: 1em;
+            padding-right: 2.5rem;
+            cursor: pointer;
+        }
+
+        /* Error state for inputs */
+        .form-control.error-border {
+            border-color: var(--error-color);
+        }
+
+        .form-control.error-border:focus {
+            box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+        }
+
+        /* Password Wrapper for Toggle Button */
+        .password-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .password-wrapper .form-control {
+            padding-right: 4rem;
+            /* Make room for the toggle button */
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 1rem;
+            background: none;
+            border: none;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+
+        .toggle-password:hover {
+            color: var(--primary-color);
+        }
+
+        /* Error Messages */
+        .error-message {
+            color: var(--error-color);
+            font-size: 0.8rem;
+            margin-top: 0.4rem;
+            display: none;
+            font-weight: 500;
+        }
+
+        /* Remember Me & Forgot Password */
+        .form-options {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            font-size: 0.875rem;
+        }
+
+        .remember-me {
+            display: flex;
+            align-items: center;
+            color: var(--text-muted);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .remember-me input {
+            margin-right: 0.5rem;
+            accent-color: var(--primary-color);
+            cursor: pointer;
+            width: 14px;
+            height: 14px;
+        }
+
+        .forgot-password {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.2s ease;
+        }
+
+        .forgot-password:hover {
+            text-decoration: underline;
+            color: var(--primary-hover);
+        }
+
+        /* Login Button */
+        .login-btn {
+            width: 100%;
+            background-color: var(--primary-color);
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            padding: 0.875rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 48px;
+        }
+
+        .login-btn:hover:not(:disabled) {
+            background-color: var(--primary-hover);
+        }
+
+        .login-btn:active:not(:disabled) {
+            transform: translateY(1px);
+        }
+
+        .login-btn:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Spinner Animation */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #ffffff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Footer Styling */
+        .footer {
+            text-align: center;
+            padding: 1.5rem;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .footer p {
+            margin-bottom: 0.25rem;
+        }
+
+        /* Responsive adjustments for mobile devices */
+        @media (max-width: 480px) {
+            .login-card {
+                padding: 2rem 1.5rem;
+                border-radius: 0;
+                /* Optional edge-to-edge on very small screens, keeping 8px otherwise */
+                box-shadow: none;
+            }
+
+            .main-content {
+                padding: 0;
+                align-items: flex-start;
+                background-color: var(--card-bg);
+            }
+        }
+
+        /* --- Enterprise Toast Notification System --- */
+        .toast-container {
+            position: fixed;
+            top: 1.5rem;
+            right: 1.5rem;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            pointer-events: none;
+            /* Let clicks pass through empty space */
+        }
+
+        .toast {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 1.25rem;
+            min-width: 320px;
+            max-width: 420px;
+            background: #ffffff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.08);
+            /* Subtle premium shadow */
+            border-radius: 8px;
+            /* 8px rounded corners */
+            border-left: 4px solid var(--primary-color);
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-main);
+            transform: translateX(120%);
+            opacity: 0;
+            animation: slideIn 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+            /* Smooth modern slide-in */
+            pointer-events: auto;
+            /* Re-enable clicks on the toast itself */
+            overflow: hidden;
+        }
+
+        .toast.hiding {
+            animation: slideOut 0.3s cubic-bezier(0.4, 0, 1, 1) forwards;
+        }
+
+        @keyframes slideIn {
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            to {
+                transform: translateX(120%);
+                opacity: 0;
+            }
+        }
+
+        .toast-content {
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 1.25rem;
+            line-height: 1;
+            padding: 0;
+            margin-left: 1rem;
+            transition: color 0.2s ease;
+        }
+
+        .toast-close:hover {
+            color: var(--text-main);
+        }
+
+        /* Toast Themes mapping to prompt requirements */
+        .toast.success {
+            border-left-color: #10b981;
+        }
+
+        /* Green */
+        .toast.error {
+            border-left-color: #ef4444;
+        }
+
+        /* Red (User not found) */
+        .toast.warning {
+            border-left-color: #f97316;
+        }
+
+        /* Orange (Invalid password) */
+        .toast.info {
+            border-left-color: #8b5cf6;
+        }
+
+        /* Purple (Invalid role) */
+        .toast.inactive {
+            border-left-color: #6b7280;
+        }
+
+        /* Grey (Inactive account) */
+        .toast.network {
+            border-left-color: #991b1b;
+        }
+
+        /* Dark Red (Network error) */
+
+        .toast-icon {
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+
+        /* Success toast small spinner */
+        .toast-spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(16, 185, 129, 0.2);
+            border-radius: 50%;
+            border-top-color: #10b981;
+            animation: spin 0.8s linear infinite;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <main class="main-content">
+        <div class="login-card">
+            <header class="login-header">
+                <h1>RegReportX</h1>
+                <p>Regulatory Reporting & Compliance System</p>
+            </header>
+
+            <form id="loginForm" novalidate>
+                <!-- Email Field -->
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" class="form-control" name="email"
+                        placeholder="Enter your work email">
+                    <div class="error-message" id="emailError"></div>
+                </div>
+
+                <!-- Password Field with Toggle -->
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <div class="password-wrapper">
+                        <input type="password" id="password" class="form-control" name="password"
+                            placeholder="Enter your password">
+                        <button type="button" id="togglePassword" class="toggle-password">Show</button>
+                    </div>
+                    <div class="error-message" id="passwordError"></div>
+                </div>
+
+                <!-- Role Dropdown -->
+                <div class="form-group">
+                    <label for="role">Role</label>
+                    <select id="role" class="form-control" name="role">
+                        <option value="" disabled selected>Select your role</option>
+                        <option value="COMPLIANCE_ANALYST">Compliance Analyst</option>
+                        <option value="RISK_ANALYST">Risk Analyst</option>
+                        <option value="REPORTING_OFFICER">Reporting Officer</option>
+                        <option value="OPERATIONS_OFFICER">Operations Officer</option>
+                        <option value="REGTECH_ADMIN">RegTech Admin</option>
+                    </select>
+                    <div class="error-message" id="roleError"></div>
+                </div>
+
+                <!-- Options: Remember Me & Forgot Password -->
+                <div class="form-options">
+                    <label class="remember-me">
+                        <input type="checkbox" id="rememberMe"> Remember Me
+                    </label>
+                    <a href="#" class="forgot-password">Forgot Password?</a>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" id="submitBtn" class="login-btn">
+                    <span class="btn-text">Sign In</span>
+                    <span class="spinner" style="display: none;"></span>
+                </button>
+            </form>
+        </div>
+    </main>
+
+    <!-- Professional Footer -->
+    <footer class="footer">
+        <p>&copy; 2026 RegReportX</p>
+        <p>Secure Regulatory Filing Platform</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // DOM Elements
+            const form = document.getElementById('loginForm');
+            const email = document.getElementById('email');
+            const password = document.getElementById('password');
+            const role = document.getElementById('role');
+            const togglePassword = document.getElementById('togglePassword');
+            const submitBtn = document.getElementById('submitBtn');
+            const btnText = submitBtn.querySelector('.btn-text');
+            const spinner = submitBtn.querySelector('.spinner');
+
+            // 1. Show/Hide Password Toggle
+            togglePassword.addEventListener('click', () => {
+                const isPassword = password.getAttribute('type') === 'password';
+                password.setAttribute('type', isPassword ? 'text' : 'password');
+                togglePassword.textContent = isPassword ? 'Hide' : 'Show';
+            });
+
+            // Utility to show inline errors
+            const showError = (elementId, message) => {
+                const errorElement = document.getElementById(elementId);
+                const inputElement = document.getElementById(elementId.replace('Error', ''));
+
+                errorElement.textContent = message;
+                errorElement.style.display = 'block';
+                inputElement.classList.add('error-border');
+            };
+
+            // Utility to clear inline errors
+            const clearError = (elementId) => {
+                const errorElement = document.getElementById(elementId);
+                const inputElement = document.getElementById(elementId.replace('Error', ''));
+
+                errorElement.textContent = '';
+                errorElement.style.display = 'none';
+                inputElement.classList.remove('error-border');
+            };
+
+            // Regex for email validation
+            const validateEmailFormat = (val) => {
+                const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                return re.test(String(val).toLowerCase());
+            };
+
+            // 2. Clear errors when the user starts typing/selecting
+            [email, password, role].forEach(el => {
+                el.addEventListener('input', () => clearError(el.id + 'Error'));
+                el.addEventListener('change', () => clearError(el.id + 'Error'));
+            });
+
+            // 3. Form Submission Handling
+            document.querySelector("form").addEventListener("submit", async function (e) {
+                e.preventDefault();
+
+                const emailValue = document.getElementById("email").value;
+                const passwordValue = document.getElementById("password").value;
+                const roleValue = document.getElementById("role").value;
+
+                // Disable button and show form spinner during fetch
+                btnText.style.display = 'none';
+                spinner.style.display = 'inline-block';
+                submitBtn.disabled = true;
+
+                try {
+                    const response = await fetch("http://localhost:9090/api/login", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({ email: emailValue, password: passwordValue, role: roleValue })
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        localStorage.setItem("userRole", data.role);
+                        showToast('success', 'Login successful. Redirecting...');
+
+                        setTimeout(() => {
+                            if (data.role === "REGTECH_ADMIN")
+                                window.location.href = "admin-panel.html";
+                            else if (data.role === "COMPLIANCE_ANALYST")
+                                window.location.href = "compliance-dashboard.html";
+                            else if (data.role === "RISK_ANALYST")
+                                window.location.href = "risk-dashboard.html";
+                            else if (data.role === "REPORTING_OFFICER")
+                                window.location.href = "reporting-workspace.html";
+                            else if (data.role === "OPERATIONS_OFFICER")
+                                window.location.href = "operations-console.html";
+                            else
+                                window.location.href = "dashboard.html";
+                        }, 1500);
+
+                    } else {
+                        // Backend returns plain text strings for errors
+                        const errorMsg = await response.text();
+
+                        // Reset button state immediately on error
+                        btnText.style.display = 'inline-block';
+                        spinner.style.display = 'none';
+                        submitBtn.disabled = false;
+
+                        // Clear any previous error borders
+                        ['email', 'password', 'role'].forEach(id => {
+                            document.getElementById(id).classList.remove('error-border');
+                        });
+
+                        // Different UI styles based on error type according to requirements
+                        // and highlight the specific field where the user made the mistake
+                        if (errorMsg.includes("User not found")) {
+                            document.getElementById("email").classList.add('error-border');
+                            showToast('error', 'No account found with this email.', '❌');
+                            document.getElementById("email").focus();
+                        } else if (errorMsg.includes("Invalid password")) {
+                            document.getElementById("password").classList.add('error-border');
+                            showToast('warning', 'Incorrect password. Please try again.', '⚠️');
+                            document.getElementById("password").focus();
+                            document.getElementById("password").value = ''; // clear password
+                        } else if (errorMsg.includes("Invalid role selected")) {
+                            document.getElementById("role").classList.add('error-border');
+                            showToast('info', 'Selected role does not match this account.', 'ℹ️');
+                            document.getElementById("role").focus();
+                        } else if (errorMsg.includes("User inactive")) {
+                            showToast('inactive', 'Your account is currently inactive. Contact administrator.', '🔒');
+                        } else {
+                            showToast('error', errorMsg || "Unknown error", '❌');
+                        }
+                    }
+                } catch (error) {
+                    btnText.style.display = 'inline-block';
+                    spinner.style.display = 'none';
+                    submitBtn.disabled = false;
+
+                    showToast('network', 'Unable to connect to server. Please try later.', '🔌');
+                }
+            });
+
+            // Enterprise Modular Toast Function
+            window.showToast = function (type, message, customIcon = '') {
+                const container = document.getElementById('toastContainer');
+                if (!container) return;
+
+                const toast = document.createElement('div');
+                toast.className = `toast ${type}`;
+
+                // Set appropriate icon based on type (success gets a spinner, others get emojis/icons)
+                let iconHtml = customIcon ? `<span>${customIcon}</span>` : '';
+                if (type === 'success') {
+                    iconHtml = '<div class="toast-spinner"></div>';
+                }
+
+                toast.innerHTML = `
+                    <div class="toast-content">
+                        <div class="toast-icon">${iconHtml}</div>
+                        <div>${message}</div>
+                    </div>
+                    <button class="toast-close" aria-label="Close">&times;</button>
+                `;
+
+                // Setup close interaction
+                toast.querySelector('.toast-close').addEventListener('click', () => {
+                    closeToast(toast);
+                });
+
+                container.appendChild(toast);
+
+                // Auto-remove after 4 seconds
+                setTimeout(() => closeToast(toast), 4000);
+            };
+
+            // Helper to smoothly slide out and remove toast
+            function closeToast(toast) {
+                if (toast.classList.contains('hiding')) return; // Prevent double trigger
+                toast.classList.add('hiding');
+                toast.addEventListener('animationend', () => toast.remove());
+            }
+        });
+    </script>
+</body>
+
+</html>

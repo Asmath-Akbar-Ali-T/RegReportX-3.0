@@ -1,0 +1,470 @@
+<div class="risk-layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <a routerLink="/" class="sidebar-brand">
+        <div class="brand-icon">
+          <span class="material-icons">assessment</span>
+        </div>
+        <span class="brand-name">RegReportX</span>
+      </a>
+    </div>
+
+    <nav class="sidebar-nav">
+      <button class="nav-item" [class.active]="activeTab === 'overview'" (click)="switchTab('overview')">
+        <span class="material-icons">dashboard</span>
+        <span>Overview</span>
+      </button>
+      <button class="nav-item" [class.active]="activeTab === 'metrics'" (click)="switchTab('metrics')">
+        <span class="material-icons">trending_up</span>
+        <span>Risk Metrics</span>
+      </button>
+      <button class="nav-item" [class.active]="activeTab === 'calculate'" (click)="switchTab('calculate')">
+        <span class="material-icons">calculate</span>
+        <span>Calculate</span>
+      </button>
+      <button class="nav-item" [class.active]="activeTab === 'reports'" (click)="switchTab('reports')">
+        <span class="material-icons">description</span>
+        <span>Reports</span>
+      </button>
+      <button class="nav-item" [class.active]="activeTab === 'audit'" (click)="switchTab('audit')">
+        <span class="material-icons">history</span>
+        <span>Audit Log</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar">
+          <span class="material-icons">person</span>
+        </div>
+        <div class="user-details">
+          <span class="user-name">{{ username }}</span>
+          <span class="user-role">Risk Analyst</span>
+        </div>
+      </div>
+      <button class="logout-btn" (click)="logout()">
+        <span class="material-icons">logout</span>
+        <span>Logout</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Toast -->
+    <div class="toast" *ngIf="notification" [ngClass]="'toast-' + notification.type">
+      <span class="material-icons">{{ notification.type === 'success' ? 'check_circle' : 'error' }}</span>
+      {{ notification.message }}
+    </div>
+
+    <!-- Loading -->
+    <div class="loading-overlay" *ngIf="isLoading">
+      <div class="spinner"></div>
+    </div>
+
+    <!-- ==================== OVERVIEW TAB ==================== -->
+    <div class="tab-pane" *ngIf="activeTab === 'overview'">
+      <div class="content-header">
+        <div>
+          <h1>Risk Overview</h1>
+          <p>At-a-glance risk posture across all reports</p>
+        </div>
+        <button class="action-btn outline" (click)="loadMetrics()">
+          <span class="material-icons">refresh</span> Refresh
+        </button>
+      </div>
+
+      <!-- Stat Cards -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(99, 102, 241, 0.12); color: #6366f1;">
+            <span class="material-icons">analytics</span>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value">{{ totalMetrics }}</span>
+            <span class="stat-label">Total Metrics</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(59, 130, 246, 0.12); color: #3b82f6;">
+            <span class="material-icons">description</span>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value">{{ reportsAnalyzed }}</span>
+            <span class="stat-label">Reports Analyzed</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(239, 68, 68, 0.12); color: #ef4444;">
+            <span class="material-icons">warning</span>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value">{{ breachCount }}</span>
+            <span class="stat-label">Threshold Breaches</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(16, 185, 129, 0.12); color: #10b981;">
+            <span class="material-icons">verified_user</span>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value">{{ safeCount }}</span>
+            <span class="stat-label">Within Limits</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Overview Charts -->
+      <div class="charts-grid" *ngIf="metrics.length > 0">
+        <div class="card chart-card">
+          <div class="card-header-row">
+            <h3><span class="material-icons">bar_chart</span> Average Metric Values</h3>
+          </div>
+          <div class="chart-body">
+            <canvas id="metricValuesChart"></canvas>
+          </div>
+        </div>
+        <div class="card chart-card">
+          <div class="card-header-row">
+            <h3><span class="material-icons">donut_large</span> Breach vs Safe</h3>
+          </div>
+          <div class="chart-body">
+            <canvas id="breachRatioChart"></canvas>
+          </div>
+        </div>
+        <div class="card chart-card">
+          <div class="card-header-row">
+            <h3><span class="material-icons">show_chart</span> Metrics per Report</h3>
+          </div>
+          <div class="chart-body">
+            <canvas id="metricsByReportChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" *ngIf="metrics.length === 0 && !isLoading">
+        <div class="empty-state">
+          <span class="material-icons">analytics</span>
+          <p>No risk metrics calculated yet. Go to the Calculate tab to trigger metric calculations.</p>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ==================== METRICS TAB ==================== -->
+    <div class="tab-pane" *ngIf="activeTab === 'metrics'">
+      <div class="content-header">
+        <div>
+          <h1>Risk Metrics</h1>
+          <p>Detailed view of all calculated risk metrics with threshold analysis</p>
+        </div>
+        <button class="action-btn outline" (click)="loadMetrics()">
+          <span class="material-icons">refresh</span> Refresh
+        </button>
+      </div>
+
+      <!-- Metrics Charts -->
+      <div class="charts-grid" *ngIf="metrics.length > 0">
+        <div class="card chart-card">
+          <div class="card-header-row">
+            <h3><span class="material-icons">radar</span> Risk Profile</h3>
+          </div>
+          <div class="chart-body">
+            <canvas id="riskProfileChart"></canvas>
+          </div>
+        </div>
+        <div class="card chart-card">
+          <div class="card-header-row">
+            <h3><span class="material-icons">stacked_bar_chart</span> Metric Distribution</h3>
+          </div>
+          <div class="chart-body">
+            <canvas id="metricDistChart"></canvas>
+          </div>
+        </div>
+        <div class="card chart-card">
+          <div class="card-header-row">
+            <h3><span class="material-icons">speed</span> Value vs Threshold</h3>
+          </div>
+          <div class="chart-body">
+            <canvas id="thresholdChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Metrics Table -->
+      <div class="card" style="border-left: 4px solid #6366f1;">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Report</th>
+                <th>Metric</th>
+                <th>Value</th>
+                <th>Threshold</th>
+                <th>Status</th>
+                <th>Calculated</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let m of paginatedMetrics">
+                <td><span class="id-badge">{{ m.metricId }}</span></td>
+                <td><span class="type-badge">Report #{{ m.report?.reportId }}</span></td>
+                <td class="code-cell">{{ m.metricName }}</td>
+                <td>
+                  <span class="metric-value" [class.metric-breach]="isBreached(m)">
+                    {{ m.metricValue | number:'1.2-2' }}
+                  </span>
+                </td>
+                <td>
+                  <span class="threshold-label">{{ getThresholdLabel(m) }}</span>
+                </td>
+                <td>
+                  <span class="status-badge" [ngClass]="getThresholdClass(m)">
+                    {{ isBreached(m) ? 'BREACH' : (thresholds[m.metricName] ? 'SAFE' : 'N/A') }}
+                  </span>
+                </td>
+                <td class="text-muted">{{ m.calculationDate | date:'short' }}</td>
+              </tr>
+              <tr *ngIf="metrics.length === 0 && !isLoading">
+                <td colspan="7" class="empty-state">
+                  <span class="material-icons">analytics</span>
+                  <p>No risk metrics found.</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination-footer" *ngIf="metrics.length > 0">
+          <div class="pagination-info">
+            Showing {{ (metPage - 1) * metPageSize + 1 }} to {{ Math.min(metPage * metPageSize, metrics.length) }} of {{ metrics.length }}
+          </div>
+          <div class="pagination-actions">
+            <button class="action-btn outline small" (click)="prevPage('met')" [disabled]="metPage === 1">
+              <span class="material-icons">chevron_left</span> Prev
+            </button>
+            <span class="page-indicator">Page {{ metPage }} of {{ metTotalPages }}</span>
+            <button class="action-btn outline small" (click)="nextPage('met')" [disabled]="metPage === metTotalPages">
+              Next <span class="material-icons">chevron_right</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ==================== CALCULATE TAB ==================== -->
+    <div class="tab-pane" *ngIf="activeTab === 'calculate'">
+      <div class="content-header">
+        <div>
+          <h1>Calculate Metrics</h1>
+          <p>Trigger risk metric calculation for a DRAFT report</p>
+        </div>
+      </div>
+
+      <div class="card calc-card">
+        <div class="calc-form">
+          <div class="calc-icon">
+            <span class="material-icons">calculate</span>
+          </div>
+          <h3>Run Risk Calculation</h3>
+          <p>Select a draft report to calculate CRAR, LCR, Loan-to-Deposit Ratio, and other regulatory risk metrics.</p>
+
+          <div class="calc-select-row">
+            <select [(ngModel)]="selectedReportId" class="calc-select">
+              <option [ngValue]="null" disabled>Select a DRAFT report...</option>
+              <option *ngFor="let r of draftReports" [ngValue]="r.reportId">
+                Report #{{ r.reportId }} — {{ r.template?.regulationCode || 'Unknown' }} ({{ r.period }})
+              </option>
+            </select>
+            <button class="action-btn primary" (click)="calculateMetrics()" [disabled]="!selectedReportId || isLoading">
+              <span class="material-icons">play_arrow</span>
+              Calculate
+            </button>
+          </div>
+
+          <div class="calc-empty" *ngIf="draftReports.length === 0 && !isLoading">
+            <span class="material-icons">info</span>
+            No DRAFT reports available for calculation.
+          </div>
+        </div>
+
+        <!-- Results -->
+        <div class="calc-result" *ngIf="calculationResult">
+          <div class="calc-result-header">
+            <span class="material-icons">check_circle</span>
+            <h4>Calculation Complete</h4>
+          </div>
+          <div class="calc-result-body">
+            <div class="calc-result-item">
+              <span class="calc-result-label">Report ID</span>
+              <span class="calc-result-value">{{ calculationResult.reportId }}</span>
+            </div>
+            <div class="calc-result-item">
+              <span class="calc-result-label">Metrics Calculated</span>
+              <span class="calc-result-value">{{ calculationResult.metricsCalculated?.length || 0 }}</span>
+            </div>
+            <div class="calc-result-metrics">
+              <span class="calc-metric-chip" *ngFor="let name of calculationResult.metricsCalculated">
+                {{ name }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ==================== REPORTS TAB ==================== -->
+    <div class="tab-pane" *ngIf="activeTab === 'reports'">
+      <div class="content-header">
+        <div>
+          <h1>Reports</h1>
+          <p>View all regulatory reports and their statuses</p>
+        </div>
+        <button class="action-btn outline" (click)="loadReports()">
+          <span class="material-icons">refresh</span> Refresh
+        </button>
+      </div>
+
+      <div class="card">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Template</th>
+                <th>Period</th>
+                <th>Generated</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let r of paginatedReports">
+                <td><span class="id-badge">{{ r.reportId }}</span></td>
+                <td class="code-cell">{{ r.template?.regulationCode || '—' }}</td>
+                <td>{{ r.period }}</td>
+                <td>{{ r.generatedDate | date:'medium' }}</td>
+                <td>
+                  <span class="status-badge" [ngClass]="getStatusClass(r.status)">{{ r.status }}</span>
+                </td>
+              </tr>
+              <tr *ngIf="reports.length === 0 && !isLoading">
+                <td colspan="5" class="empty-state">
+                  <span class="material-icons">description</span>
+                  <p>No reports found.</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination-footer" *ngIf="reports.length > 0">
+          <div class="pagination-info">
+            Showing {{ (repPage - 1) * repPageSize + 1 }} to {{ Math.min(repPage * repPageSize, reports.length) }} of {{ reports.length }}
+          </div>
+          <div class="pagination-actions">
+            <button class="action-btn outline small" (click)="prevPage('rep')" [disabled]="repPage === 1">
+              <span class="material-icons">chevron_left</span> Prev
+            </button>
+            <span class="page-indicator">Page {{ repPage }} of {{ repTotalPages }}</span>
+            <button class="action-btn outline small" (click)="nextPage('rep')" [disabled]="repPage === repTotalPages">
+              Next <span class="material-icons">chevron_right</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ==================== AUDIT LOG TAB ==================== -->
+    <div class="tab-pane" *ngIf="activeTab === 'audit'">
+      <div class="content-header">
+        <div>
+          <h1>Audit Log</h1>
+          <p>Complete activity trail for all system actions</p>
+        </div>
+        <div class="audit-header-actions">
+          <div class="audit-search-wrapper">
+            <span class="material-icons audit-search-icon">search</span>
+            <input type="text" class="audit-search-input" placeholder="Search actions, users..."
+              [(ngModel)]="auditSearchTerm" (ngModelChange)="onAuditSearch()" />
+          </div>
+          <button class="action-btn outline" (click)="loadAuditLogs()">
+            <span class="material-icons">refresh</span> Refresh
+          </button>
+        </div>
+      </div>
+
+      <div class="card" style="border-left: 4px solid #6366f1;">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>User</th>
+                <th>Action</th>
+                <th>Module</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let log of paginatedAuditLogs" class="audit-row">
+                <td>
+                  <div class="audit-timestamp">
+                    <span class="material-icons audit-time-icon">schedule</span>
+                    <span>{{ log.timestamp | date:'medium' }}</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="audit-user-cell">
+                    <div class="audit-user-avatar">
+                      {{ log.user?.name ? log.user?.name?.charAt(0)?.toUpperCase() : '?' }}
+                    </div>
+                    <div class="audit-user-info">
+                      <span class="audit-user-name">{{ log.user?.name || 'System' }}</span>
+                      <span class="audit-user-role">{{ log.user?.role || '' }}</span>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <span class="audit-action-badge" [ngClass]="getActionClass(log.action)">
+                    <span class="material-icons">{{ getActionIcon(log.action) }}</span>
+                    {{ getActionLabel(log.action) }}
+                  </span>
+                </td>
+                <td><span class="type-badge">{{ log.resource }}</span></td>
+                <td>
+                  <span class="audit-metadata" *ngIf="log.metadata">{{ log.metadata }}</span>
+                  <span class="audit-metadata audit-no-detail" *ngIf="!log.metadata">—</span>
+                </td>
+              </tr>
+              <tr *ngIf="filteredAuditLogs.length === 0 && !isLoading">
+                <td colspan="5" class="empty-state">
+                  <span class="material-icons">history</span>
+                  <p *ngIf="!auditSearchTerm">No audit logs recorded yet.</p>
+                  <p *ngIf="auditSearchTerm">No logs match your search.</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination-footer" *ngIf="filteredAuditLogs.length > 0">
+          <div class="pagination-info">
+            Showing {{ (auditPage - 1) * auditPageSize + 1 }} to {{ Math.min(auditPage * auditPageSize, filteredAuditLogs.length) }} of {{ filteredAuditLogs.length }}
+          </div>
+          <div class="pagination-actions">
+            <button class="action-btn outline small" (click)="prevPage('audit')" [disabled]="auditPage === 1">
+              <span class="material-icons">chevron_left</span> Prev
+            </button>
+            <span class="page-indicator">Page {{ auditPage }} of {{ auditTotalPages }}</span>
+            <button class="action-btn outline small" (click)="nextPage('audit')" [disabled]="auditPage === auditTotalPages">
+              Next <span class="material-icons">chevron_right</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>

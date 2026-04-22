@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RegTech Admin - RegReportX (RBI Platform)</title>
+    <!-- Modern Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Config -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #0c2340;
+            --primary-light: #1a3a66;
+            --secondary-color: #6366f1;
+            /* Indigo for Admin feeling */
+            --accent-color: #10b981;
+            --bg-color: #f3f4f6;
+            --sidebar-bg: #0c2340;
+            --card-bg: #ffffff;
+            --text-main: #1f2937;
+            --text-light: #6b7280;
+            --border-color: #e5e7eb;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --teal: #14b8a6;
+            --sidebar-width: 280px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--sidebar-bg);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            transition: all 0.3s;
+            z-index: 100;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .sidebar-header h2 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar-menu {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem 0;
+            list-style: none;
+        }
+
+        .menu-label {
+            padding: 0 1.5rem;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: #94a3b8;
+            font-weight: 600;
+            margin: 1rem 0 0.5rem;
+            letter-spacing: 0.05em;
+        }
+
+        .menu-item {
+            padding: 0 1rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .menu-link {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem 1rem;
+            color: #cbd5e1;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .menu-link:hover,
+        .menu-link.active {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .menu-link.active {
+            border-left: 3px solid var(--secondary-color);
+            border-radius: 0 8px 8px 0;
+        }
+
+        .menu-link i {
+            width: 20px;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+
+        .sidebar-footer {
+            padding: 1.5rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .logout-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: #cbd5e1;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+            cursor: pointer;
+        }
+
+        .logout-btn:hover {
+            color: var(--danger);
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background-color: var(--bg-color);
+        }
+
+        .topbar {
+            height: 70px;
+            background-color: var(--card-bg);
+            padding: 0 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .topbar-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .admin-badge {
+            background-color: rgba(99, 102, 241, 0.1);
+            color: var(--secondary-color);
+            font-size: 0.75rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            border: 1px solid var(--secondary-color);
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--secondary-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            box-shadow: 0 4px 6px rgba(99, 102, 241, 0.2);
+        }
+
+        .user-info {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        .user-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .user-role {
+            font-size: 0.8rem;
+            color: var(--text-light);
+        }
+
+        /* Dashboard Container */
+        .dashboard-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem;
+        }
+
+        /* KPI Cards */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .kpi-card {
+            background-color: var(--card-bg);
+            padding: 1.5rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kpi-card::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background-color: var(--secondary-color);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .kpi-card:hover::after {
+            opacity: 1;
+        }
+
+        .kpi-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.5rem;
+        }
+
+        .kpi-icon-box {
+            font-size: 1.5rem;
+            color: var(--text-light);
+        }
+
+        .icon-indigo {
+            color: var(--secondary-color);
+        }
+
+        .icon-teal {
+            color: var(--teal);
+        }
+
+        .icon-accent {
+            color: var(--accent-color);
+        }
+
+        .kpi-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-light);
+        }
+
+        .kpi-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-main);
+            line-height: 1.2;
+        }
+
+        .kpi-sub {
+            font-size: 0.75rem;
+            color: var(--text-light);
+            margin-top: 0.5rem;
+        }
+
+        /* Grid Layout */
+        .dashboard-row {
+            display: grid;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+            grid-template-columns: 1fr;
+        }
+
+        @media (min-width: 1200px) {
+            .dashboard-row {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        /* Panels */
+        .panel {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--card-bg);
+        }
+
+        .panel-title {
+            font-weight: 600;
+            font-size: 1.05rem;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .panel-body {
+            padding: 1.5rem;
+            flex: 1;
+        }
+
+        .panel-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border-color);
+            background-color: #f8fafc;
+            text-align: right;
+        }
+
+        /* Tables */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 0.875rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .data-table th {
+            font-weight: 600;
+            color: var(--text-light);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .data-table tbody tr:hover {
+            background-color: #f8fafc;
+        }
+
+        .data-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.25rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-active {
+            background-color: #ecfdf5;
+            color: #047857;
+            border: 1px solid #a7f3d0;
+        }
+
+        .badge-inactive {
+            background-color: #f1f5f9;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+        }
+
+        .badge-draft {
+            background-color: #fefce8;
+            color: #a16207;
+            border: 1px solid #fef08a;
+        }
+
+        /* Button Styles */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+
+        .btn-sm {
+            padding: 0.35rem 0.75rem;
+            font-size: 0.8rem;
+        }
+
+        .btn-outline {
+            background-color: white;
+            border-color: var(--border-color);
+            color: var(--text-main);
+        }
+
+        .btn-outline:hover {
+            background-color: #f8fafc;
+            border-color: var(--text-light);
+        }
+
+        .btn-primary {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #4f46e5;
+            box-shadow: 0 4px 6px rgba(99, 102, 241, 0.2);
+        }
+
+        /* Forms Config */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-main);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.6rem 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        select.form-control {
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            background-size: 1em;
+            padding-right: 2.5rem;
+        }
+
+        /* Toggle Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 22px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #cbd5e1;
+            transition: .3s;
+            border-radius: 22px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        input:checked+.slider {
+            background-color: var(--secondary-color);
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(22px);
+        }
+
+        /* Role mapping colors */
+        .role-pill {
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .role-comp {
+            background-color: #e0e7ff;
+            color: #3730a3;
+        }
+
+        .role-risk {
+            background-color: #fce7f3;
+            color: #9d174d;
+        }
+
+        .role-ops {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+
+        .role-rep {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <i class="fa-solid fa-building-columns" style="font-size: 1.5rem; color: #10b981;"></i>
+            <h2>RegReportX</h2>
+        </div>
+
+        <ul class="sidebar-menu">
+            <li class="menu-label">System Overview</li>
+            <li class="menu-item"><a href="#" class="menu-link active"><i class="fa-solid fa-server"></i> Platform
+                    Dashboard</a></li>
+
+            <li class="menu-label">Configuration</li>
+            <li class="menu-item"><a href="#" class="menu-link"><i class="fa-solid fa-scale-balanced"></i> Rule
+                    Configuration</a></li>
+            <li class="menu-item"><a href="#" class="menu-link"><i class="fa-solid fa-file-code"></i> Template
+                    Creation</a></li>
+            <li class="menu-item"><a href="#" class="menu-link"><i class="fa-solid fa-weight-hanging"></i> Risk Weight
+                    Mgmt</a></li>
+            <li class="menu-item"><a href="#" class="menu-link"><i class="fa-solid fa-percent"></i> Regulatory
+                    Thresholds</a></li>
+
+            <li class="menu-label">Administration</li>
+            <li class="menu-item"><a href="#" class="menu-link"><i class="fa-solid fa-users-gear"></i> User
+                    Management</a></li>
+            <li class="menu-item"><a href="#" class="menu-link"><i class="fa-regular fa-calendar-check"></i> Frequency
+                    Scheduler</a></li>
+        </ul>
+
+        <div class="sidebar-footer">
+            <a href="index.html" class="logout-btn" onclick="localStorage.removeItem('userRole')">
+                <i class="fa-solid fa-arrow-right-from-bracket"></i> Secure Logout
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Topbar -->
+        <header class="topbar">
+            <div class="topbar-title">
+                Platform Administration
+                <span class="admin-badge"><i class="fa-solid fa-shield-halved"></i> Global Access</span>
+            </div>
+            <div class="user-profile">
+                <div class="user-info">
+                    <span class="user-name">System Administrator</span>
+                    <span class="user-role">RegTech Admin</span>
+                </div>
+                <div class="avatar"><i class="fa-solid fa-user-shield"></i></div>
+            </div>
+        </header>
+
+        <div class="dashboard-container">
+
+            <!-- Dashboard Widgets -->
+            <div class="kpi-grid">
+                <div class="kpi-card" style="border-top-color: var(--secondary-color);">
+                    <div class="kpi-header">
+                        <span class="kpi-title">Active Validation Rules</span>
+                        <i class="fa-solid fa-shield-check kpi-icon-box icon-indigo"></i>
+                    </div>
+                    <div class="kpi-value">4,215</div>
+                    <div class="kpi-sub">v2.4 RBI Master Circular</div>
+                </div>
+                <div class="kpi-card" style="border-top-color: var(--teal);">
+                    <div class="kpi-header">
+                        <span class="kpi-title">Regulatory Templates</span>
+                        <i class="fa-solid fa-file-signature kpi-icon-box icon-teal"></i>
+                    </div>
+                    <div class="kpi-value">124</div>
+                    <div class="kpi-sub"><span style="color: var(--teal);">12</span> awaiting mapping update</div>
+                </div>
+                <div class="kpi-card" style="border-top-color: var(--warning);">
+                    <div class="kpi-header">
+                        <span class="kpi-title">Risk Weight Profiles</span>
+                        <i class="fa-solid fa-weight-scale kpi-icon-box" style="color: var(--warning);"></i>
+                    </div>
+                    <div class="kpi-value">18</div>
+                    <div class="kpi-sub">Basel III Asset Classes</div>
+                </div>
+                <div class="kpi-card" style="border-top-color: var(--primary-light);">
+                    <div class="kpi-header">
+                        <span class="kpi-title">Active System Users</span>
+                        <i class="fa-solid fa-users kpi-icon-box" style="color: var(--primary-light);"></i>
+                    </div>
+                    <div class="kpi-value">84</div>
+                    <div class="kpi-sub">Across 5 distinct roles</div>
+                </div>
+            </div>
+
+            <!-- Configuration Panels (Row 1) -->
+            <div class="dashboard-row">
+
+                <!-- Rule Configuration Editor (Preview) -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><i class="fa-solid fa-code-compare"></i> Quick Validation Rule Editor
+                        </div>
+                        <label class="switch" title="Toggle Editor State">
+                            <input type="checkbox" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="panel-body">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">Select Template</label>
+                                <select class="form-control">
+                                    <option>Capital Adequacy (RCA3)</option>
+                                    <option>Liquidity Coverage Ratio (LCR)</option>
+                                    <option>Large Exposures Map</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Rule Type</label>
+                                <select class="form-control">
+                                    <option>Cross-Field Validation</option>
+                                    <option>Format Check</option>
+                                    <option>Mandatory Check</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Rule Logic expression (Python/Regex based)</label>
+                            <textarea class="form-control" rows="3"
+                                style="font-family: monospace; font-size: 0.85rem; color: #4338ca; background-color: #f8fafc;"
+                                spellcheck="false">if data['Tier1Capital'] < (0.055 * data['TotalRWA']):&#10;    raise ValidationError("Tier 1 Capital below minimum 5.5% requirement")</textarea>
+                        </div>
+                    </div>
+                    <div class="panel-footer">
+                        <button class="btn btn-outline btn-sm">Test Rule</button>
+                        <button class="btn btn-primary btn-sm"><i class="fa-solid fa-floppy-disk"></i> Deploy
+                            Rule</button>
+                    </div>
+                </div>
+
+                <!-- RBI Regulatory Threshold Management -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><i class="fa-solid fa-gauge-high"></i> Global RBI Regulatory Thresholds
+                        </div>
+                        <button class="btn btn-outline btn-sm"><i class="fa-solid fa-pen"></i> Edit</button>
+                    </div>
+                    <div class="panel-body" style="padding: 0;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Metric Category</th>
+                                    <th>Required Limit</th>
+                                    <th>Warning Buffer</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>CRAR Minimum</strong></td>
+                                    <td style="font-weight: 600;">11.5%</td>
+                                    <td>+2.0% (13.5%)</td>
+                                    <td><span class="badge badge-active">Active</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>LCR Requirement</strong></td>
+                                    <td style="font-weight: 600;">100%</td>
+                                    <td>+15% (115%)</td>
+                                    <td><span class="badge badge-active">Active</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>NSFR Requirement</strong></td>
+                                    <td style="font-weight: 600;">100%</td>
+                                    <td>+5% (105%)</td>
+                                    <td><span class="badge badge-active">Active</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Single Counterparty Exp</strong></td>
+                                    <td style="font-weight: 600;">20% Tier 1</td>
+                                    <td>-1.5% (18.5%)</td>
+                                    <td><span class="badge badge-active">Active</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Configuration Panels (Row 2) -->
+            <div class="dashboard-row">
+
+                <!-- Risk Weight management -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><i class="fa-solid fa-weight-scale"></i> Asset Risk Weight
+                            Configuration</div>
+                        <a href="#"
+                            style="font-size: 0.85rem; color: var(--secondary-color); font-weight: 500; text-decoration: none;">View
+                            Full Table</a>
+                    </div>
+                    <div class="panel-body" style="padding: 0;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Asset Category (Basel III)</th>
+                                    <th>RW (%)</th>
+                                    <th>Configured By</th>
+                                    <th>Last Updated</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Cash & Balances with RBI</td>
+                                    <td><input type="text" value="0%" class="form-control"
+                                            style="width: 70px; padding: 0.25rem 0.5rem;" disabled></td>
+                                    <td>System</td>
+                                    <td>01 Jan 2026</td>
+                                </tr>
+                                <tr>
+                                    <td>Central Gov. Securities</td>
+                                    <td><input type="text" value="0%" class="form-control"
+                                            style="width: 70px; padding: 0.25rem 0.5rem;" disabled></td>
+                                    <td>System</td>
+                                    <td>01 Jan 2026</td>
+                                </tr>
+                                <tr>
+                                    <td>Commercial Real Estate</td>
+                                    <td><input type="text" value="100%" class="form-control"
+                                            style="width: 70px; padding: 0.25rem 0.5rem;" disabled></td>
+                                    <td>S. Admin</td>
+                                    <td>15 Feb 2026</td>
+                                </tr>
+                                <tr>
+                                    <td>Unrated Corporate Claims</td>
+                                    <td><input type="text" value="150%" class="form-control"
+                                            style="width: 70px; padding: 0.25rem 0.5rem;" disabled></td>
+                                    <td>S. Admin</td>
+                                    <td>15 Feb 2026</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- User Management -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><i class="fa-solid fa-users-gear"></i> User Role Access Management
+                        </div>
+                        <button class="btn btn-primary btn-sm"><i class="fa-solid fa-user-plus"></i> Add User</button>
+                    </div>
+                    <div class="panel-body" style="padding: 0;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Role Module Access</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>
+                                        <div style="font-weight: 600;">Clemence Analyst</div>
+                                        <div style="font-size: 0.75rem; color: var(--text-light);">clemence@bank.in
+                                        </div>
+                                    </td>
+                                    <td><span class="role-pill role-comp">Compliance Analyst</span></td>
+                                    <td><label class="switch"><input type="checkbox" checked><span
+                                                class="slider"></span></label></td>
+                                    <td><button class="btn btn-outline btn-sm"><i
+                                                class="fa-solid fa-ellipsis-vertical"></i></button></td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <div style="font-weight: 600;">Riley Analyst</div>
+                                        <div style="font-size: 0.75rem; color: var(--text-light);">riley@bank.in</div>
+                                    </td>
+                                    <td><span class="role-pill role-risk">Risk Analyst</span></td>
+                                    <td><label class="switch"><input type="checkbox" checked><span
+                                                class="slider"></span></label></td>
+                                    <td><button class="btn btn-outline btn-sm"><i
+                                                class="fa-solid fa-ellipsis-vertical"></i></button></td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <div style="font-weight: 600;">Rohan Officer</div>
+                                        <div style="font-size: 0.75rem; color: var(--text-light);">rohan@bank.in</div>
+                                    </td>
+                                    <td><span class="role-pill role-rep">Reporting Officer</span></td>
+                                    <td><label class="switch"><input type="checkbox" checked><span
+                                                class="slider"></span></label></td>
+                                    <td><button class="btn btn-outline btn-sm"><i
+                                                class="fa-solid fa-ellipsis-vertical"></i></button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        // Check for correct role mapping (mock security for statically hosted page)
+        const role = localStorage.getItem('userRole');
+        if (role && role !== 'REGTECH_ADMIN') {
+            alert('Access Denied. You do not have Global Administrator privileges.');
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+
+</html>
