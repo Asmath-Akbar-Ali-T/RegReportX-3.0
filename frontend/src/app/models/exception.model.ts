@@ -10,6 +10,7 @@ export interface ExceptionRecord {
   severity: string;
   assignedUser: User;
   status: string;
+  justification?: string;
 }
 
 export interface ExceptionResolveRequest {

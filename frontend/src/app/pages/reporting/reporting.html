@@ -34,10 +34,6 @@
     </nav>
 
     <div class="sidebar-footer">
-      <button class="notif-bell-btn" (click)="toggleNotifPanel()">
-        <span class="material-icons">notifications</span>
-        <span class="notif-badge" *ngIf="unreadCount > 0">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
-      </button>
       <div class="user-info">
         <div class="user-avatar">
           {{ username.charAt(0).toUpperCase() }}
@@ -53,32 +49,6 @@
       </button>
     </div>
   </aside>
-
-  <!-- Notification Panel -->
-  <div class="notif-overlay" *ngIf="showNotifPanel" (click)="toggleNotifPanel()"></div>
-  <div class="notif-panel" *ngIf="showNotifPanel">
-    <div class="notif-panel-header">
-      <h3><span class="material-icons">notifications</span> Notifications</h3>
-      <div class="notif-header-actions">
-        <button class="notif-mark-all" *ngIf="unreadCount > 0" (click)="markAllNotifRead()">Mark all read</button>
-        <button class="notif-close" (click)="toggleNotifPanel()"><span class="material-icons">close</span></button>
-      </div>
-    </div>
-    <div class="notif-panel-body">
-      <div class="notif-item" *ngFor="let n of notifications" [class.notif-unread]="n.status === 'UNREAD'" (click)="markNotifRead(n.notificationId)">
-        <span class="material-icons notif-item-icon">{{ getNotifIcon(n.category) }}</span>
-        <div class="notif-item-content">
-          <span class="notif-item-category">{{ n.category }}</span>
-          <p class="notif-item-message">{{ n.message }}</p>
-          <span class="notif-item-time">{{ n.createdDate | date:'short' }}</span>
-        </div>
-      </div>
-      <div class="notif-empty" *ngIf="notifications.length === 0">
-        <span class="material-icons">notifications_none</span>
-        <p>No notifications yet</p>
-      </div>
-    </div>
-  </div>
 
   <!-- ══════════════ MAIN CONTENT ══════════════ -->
   <main class="ro-main">
@@ -131,6 +101,7 @@
       </div>
 
       <!-- Quick Action Cards -->
+       
       <div class="ro-actions-grid">
         <div id="card-generate" class="ro-action-card ro-action-blue" (click)="navigate('generate')">
           <div class="ro-action-glow"></div>
@@ -376,7 +347,17 @@
                   <span class="ro-spinner ro-spinner-sm" *ngIf="filingMap[r.reportId!]"></span>
                   {{ filingMap[r.reportId!] ? 'Filing…' : 'File' }}
                 </button>
-                <span *ngIf="!isFileable(r)" class="ro-no-action">—</span>
+                <button
+                  *ngIf="r.status === 'FILED'"
+                  class="ro-btn ro-btn-pdf ro-btn-sm"
+                  (click)="generateFiledReportPDF(r)"
+                  [disabled]="generatingPdf[r.reportId!]"
+                >
+                  <span class="material-icons" *ngIf="!generatingPdf[r.reportId!]">picture_as_pdf</span>
+                  <span class="ro-spinner ro-spinner-sm" *ngIf="generatingPdf[r.reportId!]"></span>
+                  {{ generatingPdf[r.reportId!] ? 'Building…' : 'Download PDF' }}
+                </button>
+                <span *ngIf="!isFileable(r) && r.status !== 'FILED'" class="ro-no-action">—</span>
               </td>
             </tr>
           </tbody>
@@ -484,6 +465,59 @@
           <button class="ro-btn ro-btn-ghost" (click)="navigate('list')">
             <span class="material-icons">list_alt</span> View All Reports
           </button>
+        </div>
+
+        <!-- Filed Reports — Download PDF section -->
+        <div class="ro-filed-section" *ngIf="filedReports.length > 0">
+          <h2 class="ro-section-title">
+            <span class="material-icons">inventory_2</span> Filed Reports — Download PDF
+          </h2>
+          <div class="ro-file-grid">
+            <div
+              *ngFor="let r of filedReports"
+              class="ro-file-card ro-file-card-filed"
+              [id]="'filed-card-' + r.reportId"
+            >
+              <div class="ro-file-card-header">
+                <div class="ro-file-card-id">#{{ r.reportId }}</div>
+                <span class="ro-status-badge status-filed">
+                  <span class="material-icons">publish</span> FILED
+                </span>
+              </div>
+              <div class="ro-file-card-details">
+                <div class="ro-file-detail">
+                  <span class="material-icons">calendar_today</span>
+                  <div>
+                    <span class="ro-detail-label">Period</span>
+                    <span class="ro-detail-value">{{ r.period }}</span>
+                  </div>
+                </div>
+                <div class="ro-file-detail">
+                  <span class="material-icons">description</span>
+                  <div>
+                    <span class="ro-detail-label">Regulation</span>
+                    <span class="ro-detail-value">{{ r.template?.regulationCode || '—' }}</span>
+                  </div>
+                </div>
+                <div class="ro-file-detail">
+                  <span class="material-icons">schedule</span>
+                  <div>
+                    <span class="ro-detail-label">Generated</span>
+                    <span class="ro-detail-value">{{ formatDate(r.generatedDate) }}</span>
+                  </div>
+                </div>
+              </div>
+              <button
+                class="ro-btn ro-btn-pdf ro-btn-full"
+                (click)="generateFiledReportPDF(r)"
+                [disabled]="generatingPdf[r.reportId!]"
+              >
+                <span class="material-icons" *ngIf="!generatingPdf[r.reportId!]">picture_as_pdf</span>
+                <span class="ro-spinner ro-spinner-sm" *ngIf="generatingPdf[r.reportId!]"></span>
+                {{ generatingPdf[r.reportId!] ? 'Generating PDF…' : 'Download Filed Report PDF' }}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
