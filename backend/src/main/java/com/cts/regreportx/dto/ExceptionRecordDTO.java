@@ -15,4 +15,5 @@ public class ExceptionRecordDTO {
     private String severity;
     private UserDTO assignedUser;
     private String status;
+    private String justification;
 }

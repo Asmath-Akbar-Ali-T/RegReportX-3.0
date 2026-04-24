@@ -150,6 +150,16 @@ public class ReportingService {
         return exceptionRecordRepository.findAll();
     }
 
+    public java.util.Map<Integer, String> getExceptionJustifications() {
+        java.util.Map<Integer, String> map = new java.util.HashMap<>();
+        correctionLogRepository.findAll().forEach(log -> {
+            if (log.getExceptionRecord() != null && log.getNewValue() != null) {
+                map.put(log.getExceptionRecord().getExceptionId(), log.getNewValue());
+            }
+        });
+        return map;
+    }
+
     public List<ExceptionRecord> getOpenExceptions() {
         return exceptionRecordRepository.findByStatus("Open");
     }
