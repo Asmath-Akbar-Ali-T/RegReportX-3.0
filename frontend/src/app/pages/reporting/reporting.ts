@@ -369,6 +369,7 @@ export class ReportingComponent implements OnInit {
   }
 
   formatDate(dateStr?: string): string {
+    
     if (!dateStr) return '—';
     return new Date(dateStr).toLocaleString('en-IN', {
       day: '2-digit', month: 'short', year: 'numeric',
