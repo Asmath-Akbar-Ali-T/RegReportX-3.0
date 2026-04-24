@@ -11,6 +11,10 @@ export class ExceptionService {
 
   constructor(private http: HttpClient) {}
 
+  getAllExceptions(): Observable<ExceptionRecord[]> {
+    return this.http.get<ExceptionRecord[]>(`${this.API_URL}/all`);
+  }
+
   getOpenExceptions(): Observable<ExceptionRecord[]> {
     return this.http.get<ExceptionRecord[]>(`${this.API_URL}/open`);
   }

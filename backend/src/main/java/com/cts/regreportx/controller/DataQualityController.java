@@ -33,6 +33,7 @@ public class DataQualityController {
     }
 
     @GetMapping("/issues")
+    @PreAuthorize("hasAnyRole('COMPLIANCE_ANALYST', 'REGTECH_ADMIN', 'REPORTING_OFFICER')")
     public ResponseEntity<List<DataQualityIssueDTO>> getOpenIssues() {
         List<DataQualityIssue> issues = dataQualityService.getOpenIssues();
         auditService.logAction("VIEWED_OPEN_QUALITY_ISSUES", "DataQuality", "Open issues: " + issues.size());

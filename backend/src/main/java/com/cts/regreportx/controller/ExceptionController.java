@@ -32,7 +32,22 @@ public class ExceptionController {
         this.auditService = auditService;
     }
 
+    @GetMapping("/all")
+    @PreAuthorize("hasAnyRole('COMPLIANCE_ANALYST', 'REGTECH_ADMIN', 'REPORTING_OFFICER')")
+    public ResponseEntity<List<ExceptionRecordDTO>> getAllExceptions() {
+        List<ExceptionRecord> records = reportingService.getAllExceptions();
+        Map<Integer, String> justifications = reportingService.getExceptionJustifications();
+        auditService.logAction("VIEWED_ALL_EXCEPTIONS", "Exceptions", "All exceptions: " + records.size());
+        List<ExceptionRecordDTO> dtos = records.stream().map(r -> {
+            ExceptionRecordDTO dto = modelMapper.map(r, ExceptionRecordDTO.class);
+            dto.setJustification(justifications.get(r.getExceptionId()));
+            return dto;
+        }).collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
+    }
+
     @GetMapping("/open")
+    @PreAuthorize("hasAnyRole('COMPLIANCE_ANALYST', 'REGTECH_ADMIN', 'REPORTING_OFFICER')")
     public ResponseEntity<List<ExceptionRecordDTO>> getOpenExceptions() {
         List<ExceptionRecord> records = reportingService.getOpenExceptions();
         auditService.logAction("VIEWED_OPEN_EXCEPTIONS", "Exceptions", "Open exceptions: " + records.size());

@@ -1085,3 +1085,41 @@
 @media (max-width: 600px) {
   .ro-status-sections { grid-template-columns: 1fr; }
 }
+
+/* ── PDF Download Button ─────────────────────────────────── */
+.ro-btn-pdf {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  color: #fff;
+  border: none;
+}
+.ro-btn-pdf:hover:not(:disabled) {
+  background: linear-gradient(135deg, #b91c1c, #991b1b);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.35);
+}
+.ro-btn-pdf:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* ── Filed Reports Section ───────────────────────────────── */
+.ro-filed-section {
+  margin-top: 2rem;
+}
+.ro-filed-section .ro-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--border);
+}
+.ro-file-card-filed {
+  border-top: 3px solid #0f766e;
+  background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
+}
+.ro-file-card-filed .ro-file-card-header {
+  background: linear-gradient(135deg, #f0fdf4, #ecfdf5);
+}

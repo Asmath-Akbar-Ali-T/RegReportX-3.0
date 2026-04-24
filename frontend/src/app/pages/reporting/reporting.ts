@@ -2,14 +2,15 @@ import { Component, OnInit, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { finalize } from 'rxjs/operators';
 import { AuthService } from '../../services/auth.service';
 import { ReportService } from '../../services/report.service';
 import { AuditService } from '../../services/audit.service';
 import { TemplateService } from '../../services/template.service';
+import { PdfReportService } from '../../services/pdf-report.service';
 import { RegReport } from '../../models/report.model';
 import { RegTemplate } from '../../models/template.model';
 import { AuditLog } from '../../models/audit-log.model';
-import { finalize } from 'rxjs/operators';
 
 type ActiveView = 'dashboard' | 'generate' | 'list' | 'file' | 'audit';
 
@@ -51,6 +52,7 @@ export class ReportingComponent implements OnInit {
   filingReportId: number | null = null;
   filing = false;
   filingMap: Record<number, boolean> = {};
+  generatingPdf: Record<number, boolean> = {};
 
   // Confirm modal
   confirmModal: { show: boolean; title: string; message: string; onConfirm: () => void } = {
@@ -83,6 +85,7 @@ export class ReportingComponent implements OnInit {
     private reportService: ReportService,
     private auditService: AuditService,
     private templateService: TemplateService,
+    private pdfReportService: PdfReportService,
     private cdr: ChangeDetectorRef,
     private ngZone: NgZone
   ) {
@@ -241,6 +244,7 @@ export class ReportingComponent implements OnInit {
           this.filingMap[report.reportId!] = false;
           this.toast('success', `Report #${report.reportId} filed successfully!`);
           this.loadReports();
+          this.generateFiledReportPDF({ ...report, status: 'FILED' });
         });
       },
       error: (err) => {
@@ -398,5 +402,29 @@ export class ReportingComponent implements OnInit {
 
   removeToast(id: number): void {
     this.toasts = this.toasts.filter(t => t.id !== id);
+  }
+
+  // ── PDF GENERATION — delegated to PdfReportService ────────────────────────
+
+  generateFiledReportPDF(report: RegReport): void {
+    if (!report.reportId) return;
+    this.generatingPdf[report.reportId] = true;
+    this.cdr.detectChanges();
+
+    this.pdfReportService.generate(report, this.username).subscribe({
+      next: (filename) => {
+        this.run(() => {
+          this.toast('info', `PDF downloaded: ${filename}`);
+          this.generatingPdf[report.reportId!] = false;
+        });
+      },
+      error: (err: any) => {
+        console.error('[PDF] Generation failed:', err);
+        this.run(() => {
+          this.toast('error', 'Failed to generate PDF. Please try again.');
+          this.generatingPdf[report.reportId!] = false;
+        });
+      },
+    });
   }
 }

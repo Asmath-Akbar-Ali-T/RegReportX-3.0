@@ -30,6 +30,7 @@ public class RiskController {
     }
 
     @GetMapping("/metrics")
+    @PreAuthorize("hasAnyRole('RISK_ANALYST', 'REGTECH_ADMIN', 'REPORTING_OFFICER')")
     public ResponseEntity<List<RiskMetricDTO>> getMetrics() {
         List<RiskMetric> metrics = riskCalculationService.getAllMetrics();
         List<RiskMetricDTO> dtos = metrics.stream()
