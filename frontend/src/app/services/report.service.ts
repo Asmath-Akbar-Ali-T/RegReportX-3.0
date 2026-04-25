@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { RegReport } from '../models/report.model';
+import { RegReport, FilingWorkflowStep } from '../models/report.model';
 
 @Injectable({
   providedIn: 'root'
@@ -26,21 +26,20 @@ export class ReportService {
     return this.http.post<RegReport>(`${this.API_URL}/generate`, null, { params });
   }
 
-  approveReport(id: number, actorId: number = 1, comments?: string): Observable<RegReport> {
-    let params = new HttpParams().set('actorId', actorId.toString());
-    if (comments) {
-      params = params.set('comments', comments);
-    }
+  approveReport(id: number, comments?: string): Observable<RegReport> {
+    const params = comments ? new HttpParams().set('comments', comments) : new HttpParams();
     return this.http.put<RegReport>(`${this.API_URL}/${id}/approve`, null, { params });
   }
 
-  submitReport(id: number, actorId: number = 1): Observable<RegReport> {
-    const params = new HttpParams().set('actorId', actorId.toString());
-    return this.http.put<RegReport>(`${this.API_URL}/${id}/submit`, null, { params });
+  submitReport(id: number): Observable<RegReport> {
+    return this.http.put<RegReport>(`${this.API_URL}/${id}/submit`, null);
   }
 
-  fileReport(id: number, actorId: number = 1): Observable<RegReport> {
-    const params = new HttpParams().set('actorId', actorId.toString());
-    return this.http.put<RegReport>(`${this.API_URL}/${id}/file`, null, { params });
+  fileReport(id: number): Observable<RegReport> {
+    return this.http.put<RegReport>(`${this.API_URL}/${id}/file`, null);
+  }
+
+  getWorkflow(id: number): Observable<FilingWorkflowStep[]> {
+    return this.http.get<FilingWorkflowStep[]>(`${this.API_URL}/${id}/workflow`);
   }
 }

@@ -1,5 +1,6 @@
 package com.cts.regreportx.controller;
 
+import com.cts.regreportx.dto.FilingWorkflowDTO;
 import com.cts.regreportx.dto.RegReportDTO;
 import com.cts.regreportx.model.RegReport;
 import com.cts.regreportx.service.AuditService;
@@ -60,11 +61,20 @@ public class ReportController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/{id}/workflow")
+    @PreAuthorize("hasAnyRole('REPORTING_OFFICER', 'COMPLIANCE_ANALYST', 'REGTECH_ADMIN', 'RISK_ANALYST')")
+    public ResponseEntity<List<FilingWorkflowDTO>> getWorkflow(@PathVariable Integer id) {
+        List<FilingWorkflowDTO> steps = reportingService.getWorkflowByReportId(id).stream()
+                .map(w -> modelMapper.map(w, FilingWorkflowDTO.class))
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(steps);
+    }
+
     @PutMapping("/{id}/submit")
     @PreAuthorize("hasAnyRole('COMPLIANCE_ANALYST')")
-    public ResponseEntity<?> submitReport(@PathVariable Integer id, @RequestParam(defaultValue = "1") Integer actorId) {
+    public ResponseEntity<?> submitReport(@PathVariable Integer id) {
         try {
-            RegReport report = reportingService.submitReportForReview(id, actorId);
+            RegReport report = reportingService.submitReportForReview(id);
             auditService.logAction("SUBMITTED_REPORT", "Reports", "Report #" + id + " submitted for approval");
             notificationService.notifyRole("REGTECH_ADMIN", "Report #" + id + " submitted for approval", "Report");
             return ResponseEntity.ok(modelMapper.map(report, RegReportDTO.class));
@@ -76,10 +86,9 @@ public class ReportController {
     @PutMapping("/{id}/approve")
     @PreAuthorize("hasRole('REGTECH_ADMIN')")
     public ResponseEntity<?> approveReport(@PathVariable Integer id,
-            @RequestParam(defaultValue = "1") Integer actorId,
             @RequestParam(required = false) String comments) {
         try {
-            RegReport report = reportingService.approveReport(id, actorId, comments);
+            RegReport report = reportingService.approveReport(id, comments);
             auditService.logAction("APPROVED_REPORT", "Reports",
                     "Report #" + id + " approved" + (comments != null ? " | Comments: " + comments : ""));
             notificationService.notifyRole("REPORTING_OFFICER", "Report #" + id + " approved — ready for filing", "Report");
@@ -92,9 +101,9 @@ public class ReportController {
 
     @PutMapping("/{id}/file")
     @PreAuthorize("hasAnyRole('REPORTING_OFFICER')")
-    public ResponseEntity<?> fileReport(@PathVariable Integer id, @RequestParam(defaultValue = "1") Integer actorId) {
+    public ResponseEntity<?> fileReport(@PathVariable Integer id) {
         try {
-            RegReport report = reportingService.fileReport(id, actorId);
+            RegReport report = reportingService.fileReport(id);
             auditService.logAction("FILED_REPORT", "Reports", "Report #" + id + " filed with regulator");
             notificationService.notifyRole("REGTECH_ADMIN", "Report #" + id + " filed with regulator", "Report");
             notificationService.notifyRole("COMPLIANCE_ANALYST", "Report #" + id + " filed with regulator", "Report");

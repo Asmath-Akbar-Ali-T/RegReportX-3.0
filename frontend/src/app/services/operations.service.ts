@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of, timeout, catchError } from 'rxjs';
+import { Observable, OperatorFunction, of, timeout, catchError } from 'rxjs';
 import { Loan, Deposit, TreasuryTrade, GeneralLedger, RawRecord, UploadResponse } from '../models/operations.model';
 import { RawDataBatch } from '../models/ingestion.model';
 import { AuditLog } from '../models/audit-log.model';
@@ -14,32 +14,32 @@ export class OperationsService {
 
   constructor(private http: HttpClient) {}
 
+  private withFallback<T>(context: string, fallback: T): OperatorFunction<T, T> {
+    return catchError((err: any): Observable<T> => { console.error(`${context} failed:`, err); return of(fallback); });
+  }
+
   // Source Data Getters
   getLoans(): Observable<Loan[]> {
     return this.http.get<Loan[]>(`${this.apiUrl}/loans`).pipe(
-      timeout(this.TIMEOUT),
-      catchError(err => { console.error('getLoans failed:', err); return of([]); })
+      timeout(this.TIMEOUT), this.withFallback('getLoans', [] as Loan[])
     );
   }
 
   getDeposits(): Observable<Deposit[]> {
     return this.http.get<Deposit[]>(`${this.apiUrl}/deposits`).pipe(
-      timeout(this.TIMEOUT),
-      catchError(err => { console.error('getDeposits failed:', err); return of([]); })
+      timeout(this.TIMEOUT), this.withFallback('getDeposits', [] as Deposit[])
     );
   }
 
   getTreasury(): Observable<TreasuryTrade[]> {
     return this.http.get<TreasuryTrade[]>(`${this.apiUrl}/treasury`).pipe(
-      timeout(this.TIMEOUT),
-      catchError(err => { console.error('getTreasury failed:', err); return of([]); })
+      timeout(this.TIMEOUT), this.withFallback('getTreasury', [] as TreasuryTrade[])
     );
   }
 
   getGl(): Observable<GeneralLedger[]> {
     return this.http.get<GeneralLedger[]>(`${this.apiUrl}/gl`).pipe(
-      timeout(this.TIMEOUT),
-      catchError(err => { console.error('getGl failed:', err); return of([]); })
+      timeout(this.TIMEOUT), this.withFallback('getGl', [] as GeneralLedger[])
     );
   }
 
@@ -61,8 +61,7 @@ export class OperationsService {
 
   getIngestionBatches(): Observable<RawDataBatch[]> {
     return this.http.get<RawDataBatch[]>(`${this.apiUrl}/ingestion/batches`).pipe(
-      timeout(this.TIMEOUT),
-      catchError(err => { console.error('getIngestionBatches failed:', err); return of([]); })
+      timeout(this.TIMEOUT), this.withFallback('getIngestionBatches', [] as RawDataBatch[])
     );
   }
 
@@ -75,16 +74,14 @@ export class OperationsService {
 
   getRawRecordsByBatch(batchId: number): Observable<RawRecord[]> {
     return this.http.get<RawRecord[]>(`${this.apiUrl}/raw-records/batch/${batchId}`).pipe(
-      timeout(this.TIMEOUT),
-      catchError(err => { console.error('getRawRecordsByBatch failed:', err); return of([]); })
+      timeout(this.TIMEOUT), this.withFallback('getRawRecordsByBatch', [] as RawRecord[])
     );
   }
 
   // Audit Logs
   getAllAuditLogs(): Observable<AuditLog[]> {
     return this.http.get<AuditLog[]>(`${this.apiUrl}/audit`).pipe(
-      timeout(this.TIMEOUT),
-      catchError(err => { console.error('getAllAuditLogs failed:', err); return of([]); })
+      timeout(this.TIMEOUT), this.withFallback('getAllAuditLogs', [] as AuditLog[])
     );
   }
 }

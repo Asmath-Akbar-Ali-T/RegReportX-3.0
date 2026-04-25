@@ -1,15 +1,23 @@
 /**
  * PdfReportService
  *
- * Generates a comprehensive Regulatory Filing Certificate PDF.
- * Structure (4 pages):
- *   Page 1 — Administrative header, period params, metadata, compliance score gauge
- *   Page 2 — Risk metrics bar chart + details table
- *   Page 3 — Exception records donut chart + table with justification + data quality
- *   Page 4 — Filing audit trail + declaration & signatures
+ * Generates a clean 3-page Regulatory Filing Report PDF.
  *
- * Template colours (body): teal #0f766e / dark #111827 / gray #94a3b8
- * Charts (all colours): vibrant multi-colour palette
+ * Page 1 — Header  ·  Summary Stats  ·  Risk Metrics (bar chart + table)
+ * Page 2 — Exception Records  ·  Data Quality & Validation (sorted by severity)
+ * Page 3 — Filing Workflow (step boxes)  ·  Filing Declaration
+ *
+ * Colour palette matches the app design system (styles.css):
+ *   NAVY     #003366  — headers, section bars
+ *   BLUE     #004b8d  — accents, active states
+ *   BLUE_BG  #e6f0fa  — card backgrounds
+ *   RED      #dc3545  — breach / high severity
+ *   AMBER    #d97706  — medium severity
+ *   GREEN    #28a745  — ok / low severity
+ *   DARK     #2c3e50  — body text
+ *   GRAY     #6c757d  — secondary text / labels
+ *   BORDER   #dde2e8  — table & box borders
+ *   LIGHT_BG #f4f6f9  — alternating rows / stat cards
  */
 
 import { Injectable } from '@angular/core';
@@ -17,33 +25,28 @@ import { Observable, forkJoin, of, from } from 'rxjs';
 import { catchError, switchMap } from 'rxjs/operators';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import Chart from 'chart.js/auto';
 
-import { RiskService }          from './risk.service';
-import { ExceptionService }     from './exception.service';
-import { AuditService }         from './audit.service';
-import { DataQualityService }   from './data-quality.service';
-import { RegReport }            from '../models/report.model';
-import { RiskMetric }           from '../models/risk-metric.model';
-import { ExceptionRecord }      from '../models/exception.model';
-import { AuditLog }             from '../models/audit-log.model';
-import { DataQualityIssue }     from '../models/data-quality.model';
+import { RiskService }        from './risk.service';
+import { ExceptionService }   from './exception.service';
+import { ReportService }      from './report.service';
+import { DataQualityService } from './data-quality.service';
+import { RegReport, FilingWorkflowStep } from '../models/report.model';
+import { RiskMetric }         from '../models/risk-metric.model';
+import { ExceptionRecord }    from '../models/exception.model';
+import { DataQualityIssue }   from '../models/data-quality.model';
 
-interface ScoreDetails {
-  label: string;
-  rgb:   [number, number, number];
-  bg:    [number, number, number];
-}
-
-// ── Template colour constants ──────────────────────────────────────────────────
-const TEAL:       [number, number, number] = [15,  118, 110];
-const TEAL_DARK:  [number, number, number] = [13,   94,  88];
-const TEAL_MID:   [number, number, number] = [20,  184, 166];
-const DARK:       [number, number, number] = [17,   24,  39];
-const GRAY:       [number, number, number] = [148, 163, 184];
-const LIGHT_BG:   [number, number, number] = [249, 250, 251];
-const BORDER:     [number, number, number] = [226, 232, 240];
-const WHITE:      [number, number, number] = [255, 255, 255];
+// ── Colour constants (matches app design system) ──────────────────────────────
+const NAVY:     [number, number, number] = [  0,  51, 102];
+const BLUE:     [number, number, number] = [  0,  75, 141];
+const BLUE_BG:  [number, number, number] = [230, 240, 250];
+const RED:      [number, number, number] = [220,  53,  69];
+const GREEN:    [number, number, number] = [ 40, 167,  69];
+const AMBER:    [number, number, number] = [217, 119,   6];
+const DARK:     [number, number, number] = [ 44,  62,  80];
+const GRAY:     [number, number, number] = [108, 117, 125];
+const BORDER:   [number, number, number] = [221, 226, 232];
+const LIGHT_BG: [number, number, number] = [244, 246, 249];
+const WHITE:    [number, number, number] = [255, 255, 255];
 
 @Injectable({ providedIn: 'root' })
 export class PdfReportService {
@@ -51,13 +54,11 @@ export class PdfReportService {
   constructor(
     private riskService:        RiskService,
     private exceptionService:   ExceptionService,
-    private auditService:       AuditService,
+    private reportService:      ReportService,
     private dataQualityService: DataQualityService,
   ) {}
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  //  Public API
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ── Public API ───────────────────────────────────────────────────────────────
 
   generate(report: RegReport, username: string): Observable<string> {
     const rid = Number(report.reportId);
@@ -69,86 +70,41 @@ export class PdfReportService {
                          .pipe(catchError(() => of([] as ExceptionRecord[]))),
       qualityIssues: this.dataQualityService.getOpenIssues()
                          .pipe(catchError(() => of([] as DataQualityIssue[]))),
-      auditLogs:     this.auditService.getAuditLogs()
-                         .pipe(catchError(() => of([] as AuditLog[]))),
+      workflowSteps: this.reportService.getWorkflow(rid)
+                         .pipe(catchError(() => of([] as FilingWorkflowStep[]))),
     }).pipe(
-      switchMap(({ metrics, allExceptions, qualityIssues, auditLogs }) => {
+      switchMap(({ metrics, allExceptions, qualityIssues, workflowSteps }) => {
         const rptMetrics    = metrics.filter(m => m.report != null && Number(m.report.reportId) === rid);
         const rptExceptions = allExceptions.filter(e => Number((e.report as any)?.reportId) === rid);
-        const rptAuditLogs  = this.filterAuditLogs(auditLogs, rid);
-        return from(this.buildPDF(report, rptMetrics, rptExceptions, qualityIssues, rptAuditLogs, username));
+        return from(this.buildPDF(report, rptMetrics, rptExceptions, qualityIssues, workflowSteps, username));
       })
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  //  Audit log helpers
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ── Helpers ──────────────────────────────────────────────────────────────────
 
-  private filterAuditLogs(logs: AuditLog[], rid: number): AuditLog[] {
-    const lifecycleActions = new Set([
-      'GENERATE_REPORT', 'WORKFLOW_ADVANCE', 'APPROVE_REPORT_WITH_COMMENTS',
-      'SUBMITTED_REPORT', 'FILED_REPORT', 'GENERATE_REPORT_EXCEPTIONS',
-      'CALCULATE_RISK_METRICS', 'RESOLVED_EXCEPTION', 'RESOLVED_REPORT_EXCEPTION',
-    ]);
-    const direct = logs.filter(l =>
-      l.metadata?.includes(String(rid)) || l.resource?.includes(String(rid))
-    );
-    return direct.length > 0 ? direct : logs.filter(l => lifecycleActions.has(l.action));
+  private isMetricBreached(metric: RiskMetric): boolean {
+    const name = (metric.metricName ?? '').toLowerCase();
+    const val  = Number(metric.metricValue);
+    if (isNaN(val)) return false;
+    if (name.includes('crar') && val < 9)                          return true;
+    if (name.includes('lcr')  && val < 100)                        return true;
+    if ((name.includes('loan') && name.includes('deposit')) && val > 90) return true;
+    if ((name.includes('net') && name.includes('gl')) && val < 0)  return true;
+    return false;
   }
 
-  private auditActionLabel(action: string): string {
-    const map: Record<string, string> = {
-      'GENERATE_REPORT':              'Generated Report',
-      'WORKFLOW_ADVANCE':             'Workflow Advanced',
-      'APPROVE_REPORT_WITH_COMMENTS': 'Approved Report',
-      'SUBMITTED_REPORT':             'Submitted Report',
-      'FILED_REPORT':                 'Filed Report',
-      'GENERATE_REPORT_EXCEPTIONS':   'Generated Exceptions',
-      'CALCULATE_RISK_METRICS':       'Calculated Metrics',
-      'RESOLVED_QUALITY_ISSUE':       'Resolved Quality Issue',
-      'RESOLVED_EXCEPTION':           'Resolved Exception',
-      'RESOLVED_REPORT_EXCEPTION':    'Resolved Exception',
-    };
-    return map[action] ?? action.replace(/_/g, ' ');
+  private severityColor(severity: string): [number, number, number] {
+    const s = (severity ?? '').toUpperCase();
+    if (s === 'CRITICAL' || s === 'HIGH') return RED;
+    if (s === 'MEDIUM')                   return AMBER;
+    return GREEN;
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  //  Score helpers
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  private calculateScore(metrics: RiskMetric[], exceptions: ExceptionRecord[]): number {
-    let score = 30; // Workflow complete (FILED state)
-
-    if (metrics.length > 0) {
-      score += 25;
-      if (metrics.every(m => m.metricValue != null)) score += 10;
-    }
-
-    const open = exceptions.filter(e => e.status !== 'Resolved');
-    if (open.length === 0) {
-      score += 35;
-    } else {
-      const pen =
-        open.filter(e => e.severity === 'HIGH').length   * 10 +
-        open.filter(e => e.severity === 'MEDIUM').length *  5 +
-        open.filter(e => e.severity === 'LOW').length    *  2;
-      score += Math.max(0, 35 - pen);
-    }
-
-    return Math.min(100, score);
+  private severityOrder(severity: string): number {
+    const map: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+    return map[(severity ?? '').toUpperCase()] ?? 99;
   }
-
-  private getScoreDetails(score: number): ScoreDetails {
-    if (score >= 85) return { label: 'EXCELLENT',    rgb: [22,  163,  74], bg: [240, 253, 250] };
-    if (score >= 70) return { label: 'GOOD',         rgb: [37,   99, 235], bg: [239, 246, 255] };
-    if (score >= 50) return { label: 'SATISFACTORY', rgb: [217, 119,   6], bg: [255, 251, 235] };
-    return                  { label: 'NEEDS REVIEW', rgb: [220,  38,  38], bg: [254, 242, 242] };
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  //  Date / period helpers
-  // ─────────────────────────────────────────────────────────────────────────────
 
   private formatDate(dateStr?: string): string {
     if (!dateStr) return '—';
@@ -165,937 +121,788 @@ export class PdfReportService {
     });
   }
 
-  private parsePeriod(period: string): { start: string; end: string; deadline: string } {
-    const parts = period.split('-');
-    if (parts.length !== 2 || !parts[1].startsWith('Q')) {
-      return { start: period, end: period, deadline: '—' };
+  private drawSectionHeader(
+    doc: jsPDF, x: number, y: number, w: number, title: string,
+  ): void {
+    doc.setFillColor(...NAVY);
+    doc.rect(x, y, w, 9, 'F');
+    doc.setTextColor(...WHITE);
+    doc.setFontSize(8.5);
+    doc.setFont('helvetica', 'bold');
+    doc.text(title, x + 5, y + 6.2);
+  }
+
+  /**
+   * Draws one sector of a pie/donut chart using jsPDF line primitives.
+   * Angles are in radians; 0 = 3 o'clock, -π/2 = 12 o'clock.
+   */
+  private drawPieSlice(
+    doc: jsPDF,
+    cx: number, cy: number, r: number,
+    startAngle: number, endAngle: number,
+    color: [number, number, number],
+  ): void {
+    const sweep = endAngle - startAngle;
+    if (sweep < 0.005) return;
+    if (sweep >= 2 * Math.PI - 0.005) {
+      // Full circle — use the built-in method
+      doc.setFillColor(...color);
+      doc.circle(cx, cy, r, 'F');
+      return;
     }
-    const year   = parseInt(parts[0], 10);
-    const qNum   = parseInt(parts[1].replace('Q', ''), 10);
-    const smIdx  = (qNum - 1) * 3; // 0-based start month
-    const emIdx  = smIdx + 2;      // 0-based end month
-    const start  = new Date(year, smIdx, 1);
-    const end    = new Date(year, emIdx + 1, 0); // last day of end month
-    const dl     = new Date(year, emIdx + 1, 30);
-    const fmt    = (d: Date) => d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-    return { start: fmt(start), end: fmt(end), deadline: fmt(dl) };
+    const steps = Math.max(8, Math.ceil(sweep / (Math.PI / 18)));
+    const segs: [number, number][] = [];
+    // Center → first arc point
+    segs.push([r * Math.cos(startAngle), r * Math.sin(startAngle)]);
+    let px = cx + r * Math.cos(startAngle);
+    let py = cy + r * Math.sin(startAngle);
+    for (let i = 1; i <= steps; i++) {
+      const a  = startAngle + sweep * (i / steps);
+      const nx = cx + r * Math.cos(a);
+      const ny = cy + r * Math.sin(a);
+      segs.push([nx - px, ny - py]);
+      px = nx; py = ny;
+    }
+    // Last arc point → center
+    segs.push([cx - px, cy - py]);
+    doc.setFillColor(...color);
+    doc.lines(segs, cx, cy, [1, 1], 'F', true);
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  //  Chart generators (off-screen canvas → data URL)
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  private createGaugeChart(score: number, rgb: [number, number, number]): Promise<string> {
-    return new Promise(resolve => {
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = 320; canvas.height = 185;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) { resolve(''); return; }
-
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        const cx = 160, cy = 150, r = 115, lw = 22;
-
-        // Background track
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, Math.PI, 0, false);
-        ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = lw; ctx.lineCap = 'round';
-        ctx.stroke();
-
-        // Score arc
-        const endAngle = Math.PI + (Math.PI * score / 100);
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, Math.PI, endAngle, false);
-        ctx.strokeStyle = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
-        ctx.lineWidth = lw; ctx.lineCap = 'round';
-        ctx.stroke();
-
-        // Tick marks at 25 / 50 / 75 %
-        [0.25, 0.5, 0.75].forEach(pct => {
-          const a  = Math.PI + Math.PI * pct;
-          const x1 = cx + (r - 14) * Math.cos(a), y1 = cy + (r - 14) * Math.sin(a);
-          const x2 = cx + (r + 6)  * Math.cos(a), y2 = cy + (r + 6)  * Math.sin(a);
-          ctx.beginPath();
-          ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
-          ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 2; ctx.lineCap = 'butt';
-          ctx.stroke();
-        });
-
-        // Score text
-        ctx.fillStyle = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
-        ctx.font = 'bold 56px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-        ctx.fillText(String(score), cx, cy - 12);
-        ctx.fillStyle = '#94a3b8'; ctx.font = '20px Arial';
-        ctx.fillText('/ 100', cx, cy + 18);
-
-        // End labels
-        ctx.fillStyle = '#94a3b8'; ctx.font = '14px Arial'; ctx.textAlign = 'left';
-        ctx.fillText('0', cx - r - lw, cy + 6);
-        ctx.textAlign = 'right';
-        ctx.fillText('100', cx + r + lw, cy + 6);
-
-        resolve(canvas.toDataURL('image/png'));
-      } catch (e) {
-        console.error('[PDF] Gauge chart error:', e);
-        resolve('');
-      }
-    });
-  }
-
-  private createRiskBarChart(metrics: RiskMetric[]): Promise<string> {
-    if (metrics.length === 0) return Promise.resolve('');
-
-    return new Promise(resolve => {
-      const canvas = document.createElement('canvas');
-      const barH   = 40;
-      canvas.width  = 800;
-      canvas.height = Math.max(220, metrics.length * barH + 80);
-      canvas.style.cssText = 'position:fixed;left:-9999px;top:0;visibility:hidden';
-      document.body.appendChild(canvas);
-
-      const palette = ['#6366f1','#f43f5e','#10b981','#f59e0b','#3b82f6','#8b5cf6','#ec4899','#06b6d4'];
-
-      try {
-        const chart = new Chart(canvas, {
-          type: 'bar',
-          data: {
-            labels: metrics.map(m => m.metricName ?? 'Unknown'),
-            datasets: [{
-              label: 'Metric Value',
-              data:  metrics.map(m => Number(m.metricValue) || 0),
-              backgroundColor: metrics.map((_, i) => palette[i % palette.length] + 'cc'),
-              borderColor:     metrics.map((_, i) => palette[i % palette.length]),
-              borderWidth: 2,
-              borderRadius: 6,
-            }],
-          },
-          options: {
-            indexAxis: 'y',
-            animation: { duration: 0 } as any,
-            responsive: false,
-            plugins: {
-              legend:  { display: false },
-              tooltip: { enabled: false },
-            },
-            scales: {
-              x: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { color: '#475569' } },
-              y: { grid: { display: false },                       ticks: { color: '#334155' } },
-            },
-            layout: { padding: { left: 10, right: 20, top: 10, bottom: 10 } },
-          } as any,
-        });
-
-        // Capture immediately — Chart.js renders synchronously with duration: 0
-        const imgData = canvas.toDataURL('image/png');
-        chart.destroy();
-        if (document.body.contains(canvas)) document.body.removeChild(canvas);
-        resolve(imgData);
-      } catch (e) {
-        console.error('[PDF] Bar chart error:', e);
-        if (document.body.contains(canvas)) document.body.removeChild(canvas);
-        resolve('');
-      }
-    });
-  }
-
-  private createExceptionDonutChart(exceptions: ExceptionRecord[]): Promise<string> {
-    return new Promise(resolve => {
-      const canvas = document.createElement('canvas');
-      canvas.width  = 320;
-      canvas.height = 320;
-      canvas.style.cssText = 'position:fixed;left:-9999px;top:0;visibility:hidden';
-      document.body.appendChild(canvas);
-
-      const hi  = exceptions.filter(e => e.severity === 'HIGH').length;
-      const md  = exceptions.filter(e => e.severity === 'MEDIUM').length;
-      const lo  = exceptions.filter(e => e.severity === 'LOW').length;
-      const res = exceptions.filter(e => e.status   === 'Resolved').length;
-      const hasData = exceptions.length > 0;
-
-      try {
-        const chart = new Chart(canvas, {
-          type: 'doughnut',
-          data: {
-            labels: hasData ? ['HIGH', 'MEDIUM', 'LOW', 'Resolved'] : ['All Clear'],
-            datasets: [{
-              data:            hasData ? [hi, md, lo, res] : [1],
-              backgroundColor: hasData
-                ? ['#ef4444', '#f97316', '#10b981', '#6366f1']
-                : ['#6ee7b7'],
-              borderWidth: 3,
-              borderColor: '#ffffff',
-              hoverOffset: 6,
-            }],
-          },
-          options: {
-            animation: { duration: 0 } as any,
-            responsive: false,
-            cutout: '62%',
-            plugins: {
-              legend: {
-                position: 'bottom',
-                labels: { font: { size: 14 }, padding: 14, color: '#334155' },
-              },
-              tooltip: { enabled: false },
-            },
-          } as any,
-        });
-
-        const imgData = canvas.toDataURL('image/png');
-        chart.destroy();
-        if (document.body.contains(canvas)) document.body.removeChild(canvas);
-        resolve(imgData);
-      } catch (e) {
-        console.error('[PDF] Donut chart error:', e);
-        if (document.body.contains(canvas)) document.body.removeChild(canvas);
-        resolve('');
-      }
-    });
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  //  PDF builder
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ── PDF Builder ──────────────────────────────────────────────────────────────
 
   private async buildPDF(
-    report:       RegReport,
-    metrics:      RiskMetric[],
-    exceptions:   ExceptionRecord[],
+    report:        RegReport,
+    metrics:       RiskMetric[],
+    exceptions:    ExceptionRecord[],
     qualityIssues: DataQualityIssue[],
-    auditLogs:    AuditLog[],
-    username:     string,
+    workflowSteps: FilingWorkflowStep[],
+    username:      string,
   ): Promise<string> {
-
     try {
-    // Pre-generate all charts concurrently
-    const score    = this.calculateScore(metrics, exceptions);
-    const scoreDet = this.getScoreDetails(score);
-    const [gaugeImg, barImg, donutImg] = await Promise.all([
-      this.createGaugeChart(score, scoreDet.rgb),
-      this.createRiskBarChart(metrics),
-      this.createExceptionDonutChart(exceptions),
-    ]);
+      const doc  = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pw   = 210, ph = 297, ml = 15, mr = 15, cw = 180;
+      const now  = this.formatDateShort(new Date().toISOString());
+      const filingRef = `RFC-${(report.period ?? '').replace('-', '')}-${report.reportId}`;
 
-    // ── jsPDF init ────────────────────────────────────────────────────────────
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const pw = 210, ph = 297, ml = 15, mr = 15, cw = 180;
+      // ─────────────────────────────── PAGE 1 ──────────────────────────────────
+      let y = 0;
 
-    const [sr, sg, sb] = scoreDet.rgb;
-    const [br, bgc, bb] = scoreDet.bg;
+      // ── [1] Header ───────────────────────────────────────────────────────────
+      doc.setFillColor(...NAVY);
+      doc.rect(0, 0, pw, 46, 'F');
+      doc.setFillColor(...BLUE);
+      doc.rect(0, 44, pw, 2, 'F');
 
-    const now          = this.formatDate(new Date().toISOString());
-    const nowShort     = this.formatDateShort(new Date().toISOString());
-    const periodDates  = this.parsePeriod(report.period);
-    const filingRef    = `RFC-${(report.period ?? '').replace('-', '')}-${report.reportId}-${new Date().getFullYear()}`;
-    const reportType   = `${report.template?.frequency ?? ''} ${report.template?.regulationCode ?? ''} Report`.trim();
-    const institution  = 'RegReportX Financial Institution';
+      doc.setTextColor(...WHITE);
+      doc.setFontSize(17);
+      doc.setFont('helvetica', 'bold');
+      doc.text('REGULATORY FILING REPORT', pw / 2, 14, { align: 'center' });
 
-    // ─────────────────────────────────── PAGE 1 ───────────────────────────────
-    let y = 0;
+      const reportTitle = [
+        report.template?.regulationCode,
+        report.template?.description,
+      ].filter(Boolean).join('  —  ') || 'Regulatory Report';
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(204, 224, 245);
+      doc.text(reportTitle, pw / 2, 23, { align: 'center' });
 
-    // ── [1] Header banner ─────────────────────────────────────────────────────
-    doc.setFillColor(...TEAL_DARK);
-    doc.rect(0, 0, pw, 38, 'F');
-    doc.setFillColor(...TEAL_MID);
-    doc.rect(0, 36, pw, 2, 'F');
+      doc.setFontSize(7.5);
+      doc.setTextColor(179, 210, 240);
+      const headerLine = [
+        `Report #${report.reportId}`,
+        `Period: ${report.period}`,
+        `Status: ${report.status}`,
+        `Generated: ${this.formatDateShort(report.generatedDate)}`,
+        `Frequency: ${report.template?.frequency ?? '—'}`,
+      ].join('   |   ');
+      doc.text(headerLine, pw / 2, 34, { align: 'center' });
 
-    doc.setTextColor(...WHITE);
-    doc.setFontSize(19); doc.setFont('helvetica', 'bold');
-    doc.text('REGULATORY FILING CERTIFICATE', pw / 2, 14, { align: 'center' });
+      y = 50;
 
-    doc.setFontSize(8); doc.setFont('helvetica', 'normal');
-    doc.setTextColor(153, 246, 228);
-    doc.text('RegReportX v2.0  ·  Official Regulatory Filing Document  ·  CONFIDENTIAL', pw / 2, 22, { align: 'center' });
+      // ── [2] Summary stat cards ────────────────────────────────────────────────
+      const openExc  = exceptions.filter(e => e.status !== 'Resolved').length;
+      const openQ    = qualityIssues.filter(i => i.status === 'OPEN').length;
+      const cards: { label: string; value: string; sub: string }[] = [
+        {
+          label: 'RISK METRICS',
+          value: String(metrics.length),
+          sub:   metrics.length > 0 ? 'Calculated' : 'None yet',
+        },
+        {
+          label: 'EXCEPTION RECORDS',
+          value: String(exceptions.length),
+          sub:   `${openExc} open`,
+        },
+        {
+          label: 'DATA QUALITY ISSUES',
+          value: String(qualityIssues.length),
+          sub:   `${openQ} open`,
+        },
+      ];
 
-    doc.setFontSize(7.5); doc.setTextColor(134, 239, 172);
-    doc.text('RegReportX — Regulatory Reporting Platform', ml, 30);
-    doc.text(`Report #${report.reportId}  ·  ${report.period}  ·  ${reportType}`, pw - mr, 30, { align: 'right' });
+      const cardW = (cw - 8) / 3;
+      cards.forEach((card, i) => {
+        const cx = ml + i * (cardW + 4);
+        doc.setFillColor(...LIGHT_BG);
+        doc.setDrawColor(...BORDER);
+        doc.setLineWidth(0.35);
+        doc.roundedRect(cx, y, cardW, 22, 2, 2, 'FD');
+        doc.setFillColor(...BLUE);
+        doc.roundedRect(cx, y, cardW, 4, 2, 2, 'F');
+        doc.rect(cx, y + 2, cardW, 2, 'F');
 
-    y = 40;
+        doc.setTextColor(...GRAY);
+        doc.setFontSize(6);
+        doc.setFont('helvetica', 'normal');
+        doc.text(card.label, cx + 5, y + 9);
 
-    // ── [2] Administrative info 4-column grid ─────────────────────────────────
-    doc.setFillColor(...LIGHT_BG);
-    doc.rect(ml, y, cw, 30, 'F');
-    doc.setFillColor(...TEAL);
-    doc.rect(ml, y, 3, 30, 'F');
-    doc.setDrawColor(...BORDER);
-    doc.setLineWidth(0.2);
-    doc.rect(ml, y, cw, 30, 'S');
-
-    const adminFields: [string, string][] = [
-      ['Institution Name',   institution],
-      ['Branch Code / IFSC', 'HQ-001 / CTSTIBXXX'],
-      ['Report Type',        reportType || '—'],
-      ['Filing Reference',   filingRef],
-      ['Date of Generation', this.formatDateShort(report.generatedDate)],
-      ['Filing Status',      'OFFICIALLY FILED'],
-      ['Regulation Code',    report.template?.regulationCode || '—'],
-      ['Frequency',          report.template?.frequency || '—'],
-    ];
-    const colW = cw / 4;
-    adminFields.forEach(([label, val], i) => {
-      const col = i % 4;
-      const row = Math.floor(i / 4);
-      const cx2 = ml + 5 + col * colW;
-      const iy  = y + 7 + row * 13;
-      doc.setTextColor(...GRAY);      doc.setFontSize(6); doc.setFont('helvetica', 'normal');
-      doc.text(label.toUpperCase(), cx2, iy);
-      doc.setTextColor(...DARK);      doc.setFontSize(8.5); doc.setFont('helvetica', 'bold');
-      const truncated = val.length > 22 ? val.substring(0, 22) + '…' : val;
-      doc.text(truncated, cx2, iy + 5);
-    });
-    y += 34;
-
-    // ── [3] Reporting period strip ────────────────────────────────────────────
-    doc.setFillColor(...TEAL);
-    doc.rect(ml, y, cw, 8, 'F');
-    doc.setTextColor(...WHITE); doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');
-    doc.text('REPORTING PERIOD PARAMETERS', ml + 5, y + 5.5);
-    y += 10;
-
-    doc.setFillColor(241, 245, 249);
-    doc.rect(ml, y, cw, 18, 'F');
-    doc.setDrawColor(...BORDER); doc.rect(ml, y, cw, 18, 'S');
-
-    const periodFields: [string, string][] = [
-      ['Period Start Date', periodDates.start],
-      ['Period End Date',   periodDates.end],
-      ['Currency Unit',     'INR — Indian Rupee'],
-      ['Submission Deadline', periodDates.deadline],
-    ];
-    periodFields.forEach(([label, val], i) => {
-      const px = ml + 5 + i * (cw / 4);
-      doc.setTextColor(...GRAY); doc.setFontSize(6); doc.setFont('helvetica', 'normal');
-      doc.text(label.toUpperCase(), px, y + 6);
-      doc.setTextColor(...TEAL); doc.setFontSize(9); doc.setFont('helvetica', 'bold');
-      doc.text(val, px, y + 13);
-    });
-    // Vertical dividers
-    doc.setDrawColor(...BORDER); doc.setLineWidth(0.2);
-    [1, 2, 3].forEach(i => {
-      const dx = ml + i * (cw / 4);
-      doc.line(dx, y + 2, dx, y + 16);
-    });
-    y += 22;
-
-    // ── [4] Metadata (left 60%) + Compliance Score (right 40%) ───────────────
-    const metaW  = Math.floor(cw * 0.59);
-    const scoreW = cw - metaW - 3;
-    const scoX   = ml + metaW + 3;
-
-    // Metadata box
-    doc.setFillColor(...LIGHT_BG);
-    doc.rect(ml, y, metaW, 64, 'F');
-    doc.setFillColor(...TEAL);
-    doc.rect(ml, y, 3, 64, 'F');
-    doc.setDrawColor(...BORDER); doc.setLineWidth(0.2);
-    doc.rect(ml, y, metaW, 64, 'S');
-
-    const metaFields: [string, string][] = [
-      ['Report ID',        `#${report.reportId}`],
-      ['Regulation Code',  report.template?.regulationCode || '—'],
-      ['Reporting Period', report.period],
-      ['Generated Date',   this.formatDate(report.generatedDate)],
-      ['Filing Date',      now],
-      ['Template Desc.',   (report.template?.description || '—').substring(0, 28)],
-    ];
-    const mColW = metaW / 2;
-    metaFields.forEach(([label, val], i) => {
-      const col = i % 2;
-      const row = Math.floor(i / 2);
-      const mx  = ml + 7 + col * mColW;
-      const my  = y + 10 + row * 17;
-      doc.setTextColor(...GRAY);  doc.setFontSize(6);   doc.setFont('helvetica', 'normal');
-      doc.text(label.toUpperCase(), mx, my);
-      doc.setTextColor(...DARK);  doc.setFontSize(8.5); doc.setFont('helvetica', 'bold');
-      doc.text(val.length > 24 ? val.substring(0, 24) + '…' : val, mx, my + 5.5);
-    });
-
-    // Score card
-    doc.setFillColor(br, bgc, bb);
-    doc.rect(scoX, y, scoreW, 64, 'F');
-    doc.setFillColor(sr, sg, sb);
-    doc.rect(scoX, y, 3, 64, 'F');
-    doc.setDrawColor(...BORDER); doc.setLineWidth(0.2);
-    doc.rect(scoX, y, scoreW, 64, 'S');
-
-    doc.setTextColor(...GRAY); doc.setFontSize(6.5); doc.setFont('helvetica', 'normal');
-    doc.text('COMPLIANCE SCORE', scoX + 6, y + 7);
-
-    // Gauge chart image
-    if (gaugeImg) {
-      doc.addImage(gaugeImg, 'PNG', scoX + 5, y + 9, scoreW - 10, 35);
-    }
-
-    // Score label
-    doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(sr, sg, sb);
-    doc.text(scoreDet.label, scoX + 6, y + 51);
-
-    // Progress bar
-    const barX = scoX + 6, barW2 = scoreW - 12;
-    doc.setFillColor(226, 232, 240);
-    doc.roundedRect(barX, y + 54, barW2, 4, 1.5, 1.5, 'F');
-    doc.setFillColor(sr, sg, sb);
-    doc.roundedRect(barX, y + 54, Math.max(3, barW2 * score / 100), 4, 1.5, 1.5, 'F');
-
-    // Filed by
-    doc.setTextColor(...GRAY); doc.setFontSize(6); doc.setFont('helvetica', 'normal');
-    doc.text('FILED BY', scoX + 6, y + 62);
-    doc.setTextColor(...DARK); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
-    doc.text((username || 'Reporting Officer').substring(0, 20), scoX + 28, y + 62);
-
-    y += 68;
-
-    // ── [5] Status indicator strip ────────────────────────────────────────────
-    doc.setFillColor(244, 245, 247);
-    doc.rect(ml, y, cw, 13, 'F');
-    doc.setFillColor(sr, sg, sb);
-    doc.rect(ml, y, cw, 1.5, 'F');
-
-    const openExc = exceptions.filter(e => e.status !== 'Resolved').length;
-    const indicators: { ok: boolean; text: string }[] = [
-      { ok: true,               text: 'Workflow Complete (FILED)' },
-      { ok: metrics.length > 0, text: metrics.length > 0 ? `${metrics.length} Risk Metric${metrics.length !== 1 ? 's' : ''} Assessed` : 'Risk Metrics Pending' },
-      { ok: openExc === 0,      text: openExc === 0 ? 'All Exceptions Resolved' : `${openExc} Open Exception${openExc !== 1 ? 's' : ''}` },
-      { ok: qualityIssues.filter(i => i.status === 'OPEN').length === 0,
-        text: qualityIssues.filter(i => i.status === 'OPEN').length === 0 ? 'Data Quality Verified' : `${qualityIssues.filter(i => i.status === 'OPEN').length} Quality Issues` },
-    ];
-
-    let indX = ml + 6;
-    indicators.forEach(ind => {
-      const [dr, dg, db] = ind.ok ? [22, 163, 74] : [220, 38, 38];
-      doc.setFillColor(dr, dg, db);
-      doc.circle(indX, y + 7, 1.6, 'F');
-      doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');
-      doc.setTextColor(dr, dg, db);
-      doc.text(ind.text, indX + 4, y + 8);
-      indX += 4 + doc.getTextWidth(ind.text) + 9;
-    });
-    y += 17;
-
-    // ── [6] 3-column quick-stats tiles ────────────────────────────────────────
-    const tileW = (cw - 4) / 3;
-    const tiles: { label: string; value: string; sub: string }[] = [
-      {
-        label: 'Risk Metrics',
-        value: String(metrics.length),
-        sub:   metrics.length > 0 ? 'Metrics calculated' : 'None calculated',
-      },
-      {
-        label: 'Exception Records',
-        value: String(exceptions.length),
-        sub:   exceptions.filter(e => e.status === 'Resolved').length + ' resolved',
-      },
-      {
-        label: 'Audit Events',
-        value: String(auditLogs.length),
-        sub:   'Lifecycle events tracked',
-      },
-    ];
-
-    tiles.forEach((tile, i) => {
-      const tx = ml + i * (tileW + 2);
-      doc.setFillColor(...WHITE);
-      doc.setDrawColor(...BORDER); doc.setLineWidth(0.3);
-      doc.roundedRect(tx, y, tileW, 22, 2, 2, 'FD');
-      doc.setFillColor(...TEAL);
-      doc.roundedRect(tx, y, tileW, 4, 2, 2, 'F');
-      doc.rect(tx, y + 2, tileW, 2, 'F');
-
-      doc.setTextColor(...GRAY); doc.setFontSize(6); doc.setFont('helvetica', 'normal');
-      doc.text(tile.label.toUpperCase(), tx + 4, y + 9);
-      doc.setTextColor(...DARK); doc.setFontSize(15); doc.setFont('helvetica', 'bold');
-      doc.text(tile.value, tx + 4, y + 17);
-      doc.setTextColor(...GRAY); doc.setFontSize(6.5); doc.setFont('helvetica', 'normal');
-      doc.text(tile.sub, tx + tileW - 4, y + 17, { align: 'right' });
-    });
-    y += 26;
-
-    // ── [7] Validation & Accuracy Metrics (on page 1 if space allows) ─────────
-    const openQuality   = qualityIssues.filter(i => i.status === 'OPEN').length;
-    const totalQuality  = qualityIssues.length;
-    const validStatus   = openQuality === 0 ? 'PASS' : 'REVIEW REQUIRED';
-    const validColor: [number, number, number] = openQuality === 0 ? [22, 163, 74] : [220, 38, 38];
-
-    // Section header
-    doc.setFillColor(...TEAL);
-    doc.rect(ml, y, cw, 9, 'F');
-    doc.setTextColor(...WHITE); doc.setFontSize(9); doc.setFont('helvetica', 'bold');
-    doc.text('VALIDATION & ACCURACY METRICS', ml + 5, y + 6.2);
-    y += 11;
-
-    doc.setFillColor(...LIGHT_BG);
-    doc.rect(ml, y, cw, 20, 'F');
-    doc.setDrawColor(...BORDER); doc.rect(ml, y, cw, 20, 'S');
-    doc.setFillColor(...TEAL);
-    doc.rect(ml, y, 3, 20, 'F');
-
-    const validFields: [string, string, boolean][] = [
-      ['System Validation Status', validStatus, true],
-      ['Total Quality Issues',     String(totalQuality), false],
-      ['Open Issues',              String(openQuality),  false],
-      ['Data Source',              'RegReportX v2.0 Ingestion Engine', false],
-    ];
-    const vColW = cw / 4;
-    validFields.forEach(([label, val, highlight], i) => {
-      const vx = ml + 6 + i * vColW;
-      doc.setTextColor(...GRAY); doc.setFontSize(6); doc.setFont('helvetica', 'normal');
-      doc.text(label.toUpperCase(), vx, y + 7);
-      if (highlight) {
-        doc.setTextColor(...validColor);
-      } else {
         doc.setTextColor(...DARK);
-      }
-      doc.setFontSize(9); doc.setFont('helvetica', 'bold');
-      doc.text(val, vx, y + 14);
-    });
-    y += 24;
+        doc.setFontSize(15);
+        doc.setFont('helvetica', 'bold');
+        doc.text(card.value, cx + 5, y + 18);
 
-    // ── Page footers will be added after all pages are built ──────────────────
-
-    // ─────────────────────────────────── PAGE 2 : Risk Metrics ───────────────
-    doc.addPage();
-    y = 15;
-
-    this.drawSectionHeader(doc, ml, y, cw, 'RISK METRICS ASSESSMENT', TEAL_DARK);
-    y += 11;
-
-    // Risk summary stats row
-    doc.setFillColor(240, 253, 250);
-    doc.rect(ml, y, cw, 14, 'F');
-    doc.setDrawColor(167, 243, 208); doc.rect(ml, y, cw, 14, 'S');
-    const riskStats: [string, string][] = [
-      ['Metrics Calculated', String(metrics.length)],
-      ['Complete Values',    String(metrics.filter(m => m.metricValue != null).length)],
-      ['Score Contribution', metrics.length > 0 ? '35 / 35 pts' : '0 / 35 pts'],
-      ['Calculation Date',   metrics[0] ? this.formatDateShort(metrics[0].calculationDate) : '—'],
-    ];
-    riskStats.forEach(([label, val], i) => {
-      const rx = ml + 5 + i * (cw / 4);
-      doc.setTextColor(...GRAY); doc.setFontSize(6); doc.setFont('helvetica', 'normal');
-      doc.text(label.toUpperCase(), rx, y + 5);
-      doc.setTextColor(...TEAL); doc.setFontSize(9); doc.setFont('helvetica', 'bold');
-      doc.text(val, rx, y + 11.5);
-    });
-    y += 18;
-
-    // Bar chart
-    if (barImg && metrics.length > 0) {
-      const chartH = Math.min(70, Math.max(30, metrics.length * 10 + 20));
-      doc.setFillColor(...WHITE);
-      doc.setDrawColor(...BORDER); doc.setLineWidth(0.2);
-      doc.rect(ml, y, cw, chartH + 6, 'FD');
-      doc.setTextColor(...GRAY); doc.setFontSize(6.5); doc.setFont('helvetica', 'italic');
-      doc.text('Risk Metric Values (Horizontal Bar Chart)', ml + 4, y + 4.5);
-      doc.addImage(barImg, 'PNG', ml + 2, y + 6, cw - 4, chartH);
-      y += chartH + 12;
-    }
-
-    // Risk metrics table
-    if (metrics.length > 0) {
-      autoTable(doc, {
-        startY: y,
-        head: [['#', 'Metric Name', 'Measured Value', 'Calculated On', 'Status']],
-        body: metrics.map((m, i) => [
-          String(i + 1),
-          m.metricName,
-          typeof m.metricValue === 'number' ? m.metricValue.toFixed(4) : String(m.metricValue ?? '—'),
-          m.calculationDate ? this.formatDate(m.calculationDate) : '—',
-          m.metricValue != null ? 'Recorded' : 'Pending',
-        ]),
-        margin:             { left: ml, right: mr },
-        headStyles:         { fillColor: [20, 83, 45], textColor: WHITE, fontStyle: 'bold', fontSize: 8.5, cellPadding: 3 },
-        bodyStyles:         { fontSize: 8.5, cellPadding: 2.8 },
-        alternateRowStyles: { fillColor: [240, 253, 250] },
-        tableLineColor:     [167, 243, 208],
-        tableLineWidth:     0.2,
-        columnStyles: {
-          0: { cellWidth: 10, halign: 'center' },
-          2: { cellWidth: 40, halign: 'right' },
-          3: { cellWidth: 52 },
-          4: { cellWidth: 28, halign: 'center' },
-        },
-        didParseCell: (data: any) => {
-          if (data.section === 'body' && data.column.index === 4) {
-            data.cell.styles.textColor = [22, 163, 74];
-            data.cell.styles.fontStyle = 'bold';
-          }
-        },
+        doc.setTextColor(...GRAY);
+        doc.setFontSize(6.5);
+        doc.setFont('helvetica', 'normal');
+        doc.text(card.sub, cx + cardW - 4, y + 18, { align: 'right' });
       });
-      y = ((doc as any).lastAutoTable?.finalY ?? y) + 10;
-    } else {
-      doc.setFillColor(240, 253, 250);
-      doc.rect(ml, y, cw, 14, 'F');
-      doc.setTextColor(...GRAY); doc.setFontSize(8.5); doc.setFont('helvetica', 'italic');
-      doc.text('No risk metrics have been calculated for this report.', ml + 5, y + 9);
-      y += 20;
-    }
 
-    // ── Core Compliance Metrics Summary table (from risk metrics, formatted as financial table)
-    if (metrics.length > 0) {
-      if (y > ph - 50) { doc.addPage(); y = 15; }
-      this.drawSectionHeader(doc, ml, y, cw, 'CORE COMPLIANCE METRICS SUMMARY', TEAL);
+      y += 27;
+
+      // ── [3] Risk Metrics section ──────────────────────────────────────────────
+      this.drawSectionHeader(doc, ml, y, cw, 'RISK METRICS');
       y += 11;
 
-      autoTable(doc, {
-        startY: y,
-        head: [['S.No', 'Category', 'Metric Particulars', 'Measured Value', 'Reference Baseline', 'Variance', 'Status']],
-        body: metrics.map((m, i) => {
-          const category = m.metricName.includes('Ratio') ? 'Ratio Metric'
-                         : m.metricName.includes('Capital') ? 'Capital'
-                         : m.metricName.includes('Liquidity') ? 'Liquidity'
-                         : m.metricName.includes('Risk') ? 'Risk'
-                         : 'Compliance';
-          const baseline = 100.0;
-          const variance = m.metricValue != null ? (m.metricValue - baseline).toFixed(4) : '—';
-          return [
-            String(i + 1),
-            category,
-            m.metricName,
-            m.metricValue != null ? m.metricValue.toFixed(4) : '—',
-            baseline.toFixed(4),
-            variance,
-            m.metricValue != null ? 'Verified' : 'Pending',
+      if (metrics.length === 0) {
+        doc.setFillColor(...LIGHT_BG);
+        doc.setDrawColor(...BORDER);
+        doc.setLineWidth(0.3);
+        doc.rect(ml, y, cw, 12, 'FD');
+        doc.setTextColor(...GRAY);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'italic');
+        doc.text('No risk metrics have been calculated for this report.', ml + 5, y + 8);
+        y += 16;
+      } else {
+        autoTable(doc, {
+          startY: y,
+          head:   [['#', 'Metric Name', 'Value', 'Result']],
+          body:   metrics.map((m, i) => {
+            const breached = this.isMetricBreached(m);
+            const rawVal   = m.metricValue != null ? Number(m.metricValue).toFixed(4) : '—';
+            return [
+              String(i + 1),
+              (m.metricName ?? '—').replace(/_/g, ' '),
+              rawVal,
+              breached ? 'BREACH' : 'OK',
+            ];
+          }),
+          margin:             { left: ml, right: mr },
+          headStyles:         { fillColor: NAVY, textColor: WHITE, fontStyle: 'bold', fontSize: 8, cellPadding: 2.5 },
+          bodyStyles:         { fontSize: 8, cellPadding: 2.5 },
+          alternateRowStyles: { fillColor: LIGHT_BG },
+          tableLineColor:     BORDER,
+          tableLineWidth:     0.3,
+          columnStyles: {
+            0: { cellWidth: 12, halign: 'center' },
+            2: { cellWidth: 40, halign: 'right' },
+            3: { cellWidth: 26, halign: 'center' },
+          },
+          didParseCell: (data: any) => {
+            if (data.section === 'body') {
+              const m = metrics[data.row.index];
+              if (m && this.isMetricBreached(m)) {
+                if (data.column.index === 2 || data.column.index === 3) {
+                  data.cell.styles.textColor = RED;
+                  data.cell.styles.fontStyle = 'bold';
+                }
+              }
+              if (data.column.index === 3 && data.cell.raw === 'OK') {
+                data.cell.styles.textColor = GREEN;
+              }
+            }
+          },
+        });
+        y = ((doc as any).lastAutoTable?.finalY ?? y) + 10;
+      }
+
+      // ── [4] Two-column donut charts (fills remaining Page 1 space) ─────────────
+      if (y <= ph - 122) {
+        const colW   = (cw - 8) / 2;   // ~86 mm each
+        const col1x  = ml;
+        const col2x  = ml + colW + 8;
+        const sColY  = y;
+        const pieR   = 17;             // outer donut radius
+        const holeR  = 8;              // inner cutout radius
+        const pieCX1 = col1x + 22;
+        const pieCX2 = col2x + 22;
+        const pieCY  = sColY + 36;     // vertical centre shared by both
+        const legX1  = col1x + 45;
+        const legX2  = col2x + 45;
+        const contentH = 51;           // chart area height
+
+        // helper: draw a full donut column ────────────────────────────────────────
+        const drawDonut = (
+          colX: number, legX: number, pieCX: number,
+          title: string,
+          slices: { label: string; count: number; color: [number,number,number] }[],
+          stripOpen: number, stripTotal: number, stripLabel: string,
+        ) => {
+          this.drawSectionHeader(doc, colX, sColY, colW, title);
+
+          // Background rect
+          doc.setFillColor(...LIGHT_BG); doc.setDrawColor(...BORDER); doc.setLineWidth(0.3);
+          doc.rect(colX, sColY + 11, colW, contentH, 'FD');
+
+          const total = slices.reduce((s, sl) => s + sl.count, 0);
+
+          if (total === 0) {
+            // Grey placeholder circle
+            doc.setFillColor(221, 226, 232); doc.circle(pieCX, pieCY, pieR, 'F');
+            doc.setTextColor(...GRAY); doc.setFontSize(6.5); doc.setFont('helvetica', 'italic');
+            doc.text('No data', pieCX, pieCY + 2.5, { align: 'center' });
+          } else {
+            // Draw sectors
+            let angle = -Math.PI / 2;
+            slices.forEach(sl => {
+              const sweep = (sl.count / total) * 2 * Math.PI;
+              this.drawPieSlice(doc, pieCX, pieCY, pieR, angle, angle + sweep, sl.color);
+              angle += sweep;
+            });
+            // White outer ring for clean edge
+            doc.setDrawColor(...WHITE); doc.setLineWidth(0.8);
+            doc.circle(pieCX, pieCY, pieR, 'S');
+          }
+
+          // Donut hole
+          doc.setFillColor(...LIGHT_BG); doc.circle(pieCX, pieCY, holeR, 'F');
+          // Total in centre
+          doc.setTextColor(...DARK); doc.setFontSize(8.5); doc.setFont('helvetica', 'bold');
+          doc.text(String(total), pieCX, pieCY + 3, { align: 'center' });
+          doc.setTextColor(...GRAY); doc.setFontSize(5); doc.setFont('helvetica', 'normal');
+          doc.text('total', pieCX, pieCY + 7.5, { align: 'center' });
+
+          // Legend
+          slices.forEach((sl, i) => {
+            const ly = sColY + 22 + i * 13;
+            doc.setFillColor(...sl.color);
+            doc.circle(legX + 2.5, ly + 1.5, 2.5, 'F');
+            doc.setTextColor(...DARK); doc.setFontSize(6); doc.setFont('helvetica', 'normal');
+            doc.text(sl.label, legX + 7, ly + 2.5);
+            doc.setTextColor(...sl.color); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+            doc.text(String(sl.count), colX + colW - 4, ly + 2.5, { align: 'right' });
+          });
+
+          // Open / Resolved strip
+          const stripY = sColY + 11 + contentH + 2;
+          doc.setFillColor(...BLUE_BG); doc.setDrawColor(...BLUE); doc.setLineWidth(0.4);
+          doc.rect(colX, stripY, colW, 13, 'FD');
+          doc.setFillColor(...BLUE); doc.rect(colX, stripY, 2.5, 13, 'F');
+          doc.setTextColor(...GRAY); doc.setFontSize(6); doc.setFont('helvetica', 'normal');
+          doc.text('Open:', colX + 6, stripY + 5);
+          doc.setTextColor(...RED); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+          doc.text(String(stripOpen), colX + 24, stripY + 5);
+          doc.setTextColor(...GRAY); doc.setFontSize(6); doc.setFont('helvetica', 'normal');
+          doc.text('Resolved:', colX + 36, stripY + 5);
+          doc.setTextColor(...GREEN); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+          doc.text(String(stripTotal - stripOpen), colX + 60, stripY + 5);
+          doc.setTextColor(...GRAY); doc.setFontSize(5.5); doc.setFont('helvetica', 'normal');
+          doc.text(stripLabel, colX + 6, stripY + 10.5);
+        };
+
+        // ─ Left: Exception Breakdown ─────────────────────────────────────────────
+        drawDonut(col1x, legX1, pieCX1, 'EXCEPTION BREAKDOWN', [
+          { label: 'CRITICAL / HIGH', count: exceptions.filter(e => ['CRITICAL','HIGH'].includes((e.severity ?? '').toUpperCase())).length, color: RED   },
+          { label: 'MEDIUM',          count: exceptions.filter(e => (e.severity ?? '').toUpperCase() === 'MEDIUM').length,                  color: AMBER },
+          { label: 'LOW',             count: exceptions.filter(e => (e.severity ?? '').toUpperCase() === 'LOW').length,                     color: GREEN },
+        ], openExc, exceptions.length, `Total: ${exceptions.length} exception records`);
+
+        // ─ Right: Data Quality Breakdown ─────────────────────────────────────────
+        drawDonut(col2x, legX2, pieCX2, 'DATA QUALITY BREAKDOWN', [
+          { label: 'ERROR / HIGH',     count: qualityIssues.filter(q => ['CRITICAL','ERROR','HIGH'].includes((q.severity ?? '').toUpperCase())).length, color: RED   },
+          { label: 'WARNING / MEDIUM', count: qualityIssues.filter(q => ['WARNING','MEDIUM'].includes((q.severity ?? '').toUpperCase())).length,         color: AMBER },
+          { label: 'LOW / INFO',       count: qualityIssues.filter(q => ['LOW','INFO'].includes((q.severity ?? '').toUpperCase())).length,               color: GREEN },
+        ], openQ, qualityIssues.length, `Total: ${qualityIssues.length} quality issues`);
+
+        y = sColY + 11 + contentH + 2 + 13 + 10;
+
+        // ── [5] Compliance Risk Snapshot (full-width 4-tile strip) ───────────────
+        if (y <= ph - 50) {
+          this.drawSectionHeader(doc, ml, y, cw, 'COMPLIANCE RISK SNAPSHOT');
+          y += 11;
+
+          const breachedCount = metrics.filter(m => this.isMetricBreached(m)).length;
+          const snapCards: { label: string; value: string; sub: string; accent: [number,number,number] }[] = [
+            { label: 'METRICS BREACHED',   value: `${breachedCount} / ${metrics.length}`, sub: breachedCount > 0 ? 'Action Required'    : 'All Compliant',      accent: breachedCount > 0 ? RED   : GREEN },
+            { label: 'OPEN EXCEPTIONS',    value: String(openExc),                        sub: openExc > 0      ? 'Pending Resolution'  : 'All Clear',          accent: openExc > 0      ? RED   : GREEN },
+            { label: 'OPEN QUALITY ISSUES',value: String(openQ),                          sub: openQ > 0        ? 'Under Review'        : 'All Resolved',       accent: openQ > 0        ? AMBER : GREEN },
+            { label: 'REPORT STATUS',      value: report.status ?? '—',                   sub: report.status === 'FILED' ? 'Filed with Regulator' : 'In Progress', accent: report.status === 'FILED' ? GREEN : BLUE  },
           ];
-        }),
-        margin:             { left: ml, right: mr },
-        headStyles:         { fillColor: TEAL, textColor: WHITE, fontStyle: 'bold', fontSize: 7.5, cellPadding: 2.5 },
-        bodyStyles:         { fontSize: 7.5, cellPadding: 2.5 },
-        alternateRowStyles: { fillColor: [240, 253, 250] },
-        tableLineColor:     [167, 243, 208],
-        tableLineWidth:     0.2,
-        columnStyles: {
-          0: { cellWidth: 10, halign: 'center' },
-          3: { cellWidth: 32, halign: 'right' },
-          4: { cellWidth: 32, halign: 'right' },
-          5: { cellWidth: 28, halign: 'right' },
-          6: { cellWidth: 24, halign: 'center' },
-        },
+
+          const snapW = (cw - 12) / 4;
+          snapCards.forEach((card, i) => {
+            const sx = ml + i * (snapW + 4);
+            doc.setFillColor(...LIGHT_BG); doc.setDrawColor(...card.accent); doc.setLineWidth(0.5);
+            doc.roundedRect(sx, y, snapW, 22, 2, 2, 'FD');
+            doc.setFillColor(...card.accent); doc.roundedRect(sx, y, snapW, 4, 2, 2, 'F');
+            doc.rect(sx, y + 2, snapW, 2, 'F');
+            doc.setTextColor(...GRAY);    doc.setFontSize(5.5); doc.setFont('helvetica', 'normal');
+            doc.text(card.label, sx + snapW / 2, y + 10,   { align: 'center' });
+            doc.setTextColor(...card.accent); doc.setFontSize(10); doc.setFont('helvetica', 'bold');
+            doc.text(card.value, sx + snapW / 2, y + 17,   { align: 'center' });
+            doc.setTextColor(...GRAY);    doc.setFontSize(5.5); doc.setFont('helvetica', 'normal');
+            doc.text(card.sub,  sx + snapW / 2, y + 21.5,  { align: 'center' });
+          });
+
+          y += 26;
+        }
+      }
+
+      // ─────────────────────────────── PAGE 2 ──────────────────────────────────
+      doc.addPage();
+      y = 15;
+
+      // ── [4] Exception Records ─────────────────────────────────────────────────
+      this.drawSectionHeader(doc, ml, y, cw, 'EXCEPTION RECORDS');
+      y += 11;
+
+      // Severity summary strip
+      const sevCounts = [
+        { label: 'CRITICAL / HIGH', count: exceptions.filter(e => ['CRITICAL','HIGH'].includes((e.severity ?? '').toUpperCase())).length, color: RED },
+        { label: 'MEDIUM',          count: exceptions.filter(e => (e.severity ?? '').toUpperCase() === 'MEDIUM').length,                  color: AMBER },
+        { label: 'LOW',             count: exceptions.filter(e => (e.severity ?? '').toUpperCase() === 'LOW').length,                     color: GREEN },
+        { label: 'TOTAL',           count: exceptions.length,                                                                             color: BLUE },
+      ];
+
+      doc.setFillColor(...BLUE_BG);
+      doc.setDrawColor(...BORDER);
+      doc.setLineWidth(0.3);
+      doc.rect(ml, y, cw, 16, 'FD');
+
+      sevCounts.forEach((item, i) => {
+        const sx = ml + 6 + i * (cw / 4);
+        doc.setFillColor(...item.color);
+        doc.circle(sx + 2.5, y + 7.5, 2.5, 'F');
+        doc.setTextColor(...item.color);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.text(String(item.count), sx + 8, y + 9);
+        doc.setTextColor(...GRAY);
+        doc.setFontSize(6);
+        doc.setFont('helvetica', 'normal');
+        doc.text(item.label, sx + 8, y + 14);
       });
-      y = ((doc as any).lastAutoTable?.finalY ?? y) + 10;
-    }
 
-    // ─────────────────────────────── PAGE 3 : Exceptions + Data Quality ───────
-    doc.addPage();
-    y = 15;
+      y += 20;
 
-    this.drawSectionHeader(doc, ml, y, cw, 'EXCEPTION RECORDS', [154, 52, 18]);
-    y += 11;
+      if (exceptions.length > 0) {
+        autoTable(doc, {
+          startY: y,
+          head:   [['#', 'Field', 'Issue Description', 'Severity', 'Reason Flagged']],
+          body:   exceptions.map((e, i) => {
+            const rawJust = (e as any).justification ?? '';
+            const reason  = rawJust.includes('Reason:')
+              ? rawJust.split('Reason:')[1]?.trim()
+              : (rawJust || '—');
+            return [
+              String(i + 1),
+              e.templateField?.fieldName ?? '—',
+              e.issue ?? '—',
+              (e.severity ?? '—').toUpperCase(),
+              reason,
+            ];
+          }),
+          margin:             { left: ml, right: mr },
+          headStyles:         { fillColor: NAVY, textColor: WHITE, fontStyle: 'bold', fontSize: 8, cellPadding: 2.5 },
+          bodyStyles:         { fontSize: 7.5, cellPadding: 2.5 },
+          alternateRowStyles: { fillColor: LIGHT_BG },
+          tableLineColor:     BORDER,
+          tableLineWidth:     0.3,
+          columnStyles: {
+            0: { cellWidth: 8,  halign: 'center' },
+            1: { cellWidth: 30 },
+            3: { cellWidth: 22, halign: 'center' },
+          },
+          didParseCell: (data: any) => {
+            if (data.section === 'body' && data.column.index === 3) {
+              const sev = String(data.cell.raw).toUpperCase();
+              data.cell.styles.fontStyle = 'bold';
+              if (sev === 'CRITICAL' || sev === 'HIGH')   data.cell.styles.textColor = RED;
+              else if (sev === 'MEDIUM')                  data.cell.styles.textColor = AMBER;
+              else if (sev === 'LOW')                     data.cell.styles.textColor = GREEN;
+            }
+          },
+        });
+        y = ((doc as any).lastAutoTable?.finalY ?? y) + 14;
+      } else {
+        doc.setFillColor(...LIGHT_BG);
+        doc.setDrawColor(...BORDER);
+        doc.setLineWidth(0.3);
+        doc.rect(ml, y, cw, 12, 'FD');
+        doc.setTextColor(...GRAY);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'italic');
+        doc.text('No exception records for this report.', ml + 5, y + 8);
+        y += 16;
+      }
 
-    // Exception summary + donut side-by-side
-    const hi = exceptions.filter(e => e.severity === 'HIGH').length;
-    const md = exceptions.filter(e => e.severity === 'MEDIUM').length;
-    const lo = exceptions.filter(e => e.severity === 'LOW').length;
-    const resolved = exceptions.filter(e => e.status === 'Resolved').length;
+      // ── [5] Data Validation & Quality (sorted by severity) ───────────────────
+      if (y > ph - 75) { doc.addPage(); y = 15; }
 
-    const donutW = 60, donutH = 60;
-    const summaryX = ml + donutW + 5;
-    const summaryW = cw - donutW - 5;
+      this.drawSectionHeader(doc, ml, y, cw, 'DATA VALIDATION & QUALITY');
+      y += 11;
 
-    // Donut chart
-    if (donutImg) {
-      doc.setFillColor(...WHITE);
-      doc.setDrawColor(...BORDER); doc.setLineWidth(0.2);
-      doc.rect(ml, y, donutW, donutH, 'FD');
-      doc.addImage(donutImg, 'PNG', ml + 1, y + 1, donutW - 2, donutH - 2);
-    }
+      const sortedQuality = [...qualityIssues].sort(
+        (a, b) => this.severityOrder(a.severity ?? '') - this.severityOrder(b.severity ?? '')
+      );
 
-    // Summary grid next to donut
-    doc.setFillColor(255, 247, 237);
-    doc.rect(summaryX, y, summaryW, donutH, 'F');
-    doc.setFillColor(154, 52, 18);
-    doc.rect(summaryX, y, 3, donutH, 'F');
-    doc.setDrawColor(254, 215, 170);
-    doc.rect(summaryX, y, summaryW, donutH, 'S');
+      if (sortedQuality.length > 0) {
+        autoTable(doc, {
+          startY: y,
+          head:   [['#', 'Issue Description', 'Record ID', 'Batch ID', 'Rule', 'Severity', 'Status', 'Date']],
+          body:   sortedQuality.map((q, i) => {
+            const ruleName = q.rule?.name ?? '—';
+            return [
+              String(i + 1),
+              q.message ?? '—',
+              q.recordId ?? '—',
+              q.batch?.batchId != null ? String(q.batch.batchId) : '—',
+              ruleName.length > 18 ? ruleName.substring(0, 16) + '..' : ruleName,
+              (q.severity ?? '—').toUpperCase(),
+              q.status ?? '—',
+              q.loggedDate ? this.formatDateShort(q.loggedDate) : '—',
+            ];
+          }),
+          margin:             { left: ml, right: mr },
+          headStyles:         { fillColor: NAVY, textColor: WHITE, fontStyle: 'bold', fontSize: 7.5, cellPadding: 2 },
+          bodyStyles:         { fontSize: 7, cellPadding: 2 },
+          alternateRowStyles: { fillColor: LIGHT_BG },
+          tableLineColor:     BORDER,
+          tableLineWidth:     0.3,
+          columnStyles: {
+            0: { cellWidth: 10, halign: 'center' },
+            2: { cellWidth: 22, halign: 'center' },
+            3: { cellWidth: 18, halign: 'center' },
+            4: { cellWidth: 28 },
+            5: { cellWidth: 22, halign: 'center' },
+            6: { cellWidth: 20, halign: 'center' },
+            7: { cellWidth: 24 },
+          },
+          didParseCell: (data: any) => {
+            if (data.section === 'body' && data.column.index === 5) {
+              const sev = String(data.cell.raw).toUpperCase();
+              data.cell.styles.fontStyle = 'bold';
+              if (sev === 'CRITICAL' || sev === 'HIGH')   data.cell.styles.textColor = RED;
+              else if (sev === 'MEDIUM')                  data.cell.styles.textColor = AMBER;
+              else if (sev === 'LOW')                     data.cell.styles.textColor = GREEN;
+            }
+          },
+        });
+        y = ((doc as any).lastAutoTable?.finalY ?? y) + 10;
+      } else {
+        doc.setFillColor(...LIGHT_BG);
+        doc.setDrawColor(...BORDER);
+        doc.setLineWidth(0.3);
+        doc.rect(ml, y, cw, 12, 'FD');
+        doc.setTextColor(...GRAY);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'italic');
+        doc.text('No data quality issues recorded for this reporting period.', ml + 5, y + 8);
+        y += 16;
+      }
 
-    const excSummary: [string, string, [number,number,number]][] = [
-      ['Total Exceptions',  String(exceptions.length), DARK],
-      ['HIGH Severity',     String(hi),                [220, 38, 38]],
-      ['MEDIUM Severity',   String(md),                [234, 88, 12]],
-      ['LOW Severity',      String(lo),                [22, 163, 74]],
-      ['Resolved',          String(resolved),           [22, 163, 74]],
-      ['Open / Unresolved', String(exceptions.length - resolved), [220, 38, 38]],
-    ];
-    const halfCol = summaryW / 2;
-    excSummary.forEach(([label, val, color], i) => {
-      const col = i % 2, row = Math.floor(i / 2);
-      const ex = summaryX + 6 + col * halfCol;
-      const ey = y + 10 + row * 16;
-      doc.setTextColor(...GRAY); doc.setFontSize(6); doc.setFont('helvetica', 'normal');
-      doc.text(label.toUpperCase(), ex, ey);
-      doc.setTextColor(...color); doc.setFontSize(10); doc.setFont('helvetica', 'bold');
-      doc.text(val, ex, ey + 6.5);
-    });
-    y += donutH + 6;
+      // ─────────────────────────────── PAGE 3 ──────────────────────────────────
+      doc.addPage();
+      y = 15;
 
-    // Exceptions table (includes Justification / Resolution column)
-    if (exceptions.length > 0) {
+      // ── [6] Filing Workflow — step boxes with arrows ──────────────────────────
+      this.drawSectionHeader(doc, ml, y, cw, 'FILING WORKFLOW');
+      y += 14;
+
+      const wfSteps = ['DRAFT', 'UNDER_REVIEW', 'APPROVED', 'FILED'];
+      const wfLabels: Record<string, string> = {
+        DRAFT: 'DRAFT', UNDER_REVIEW: 'UNDER REVIEW', APPROVED: 'APPROVED', FILED: 'FILED',
+      };
+      const boxW = (cw - 15) / 4;   // 4 boxes + 3 arrow gaps of 5mm
+      const boxH = 44;               // taller to fit optional comments line
+
+      wfSteps.forEach((step, i) => {
+        const bx    = ml + i * (boxW + 5);
+        const entry = workflowSteps.find(w => w.stepName === step);
+        const done  = !!entry;
+
+        // Box background
+        doc.setFillColor(...(done ? BLUE_BG : LIGHT_BG));
+        doc.setDrawColor(...(done ? BLUE    : BORDER));
+        doc.setLineWidth(done ? 0.6 : 0.3);
+        doc.roundedRect(bx, y, boxW, boxH, 2, 2, 'FD');
+
+        // Top colour bar
+        doc.setFillColor(...(done ? BLUE : BORDER));
+        doc.roundedRect(bx, y, boxW, 5, 2, 2, 'F');
+        doc.rect(bx, y + 3, boxW, 2, 'F');
+
+        // Step label
+        doc.setTextColor(...(done ? BLUE : GRAY));
+        doc.setFontSize(7.5);
+        doc.setFont('helvetica', 'bold');
+        doc.text(wfLabels[step], bx + boxW / 2, y + 13, { align: 'center' });
+
+        // Actor name
+        const actor = entry?.actor?.name ?? (done ? 'System' : '—');
+        doc.setTextColor(...DARK);
+        doc.setFontSize(7.5);
+        doc.setFont('helvetica', 'bold');
+        doc.text(actor.substring(0, 15), bx + boxW / 2, y + 21, { align: 'center' });
+
+        // Role
+        const role = (entry?.actor?.role ?? '').replace(/_/g, ' ');
+        doc.setTextColor(...GRAY);
+        doc.setFontSize(6);
+        doc.setFont('helvetica', 'normal');
+        doc.text(role.substring(0, 16), bx + boxW / 2, y + 27, { align: 'center' });
+
+        // Date
+        const stepDate = entry ? this.formatDateShort(entry.stepDate) : '—';
+        doc.setFontSize(6);
+        doc.text(stepDate, bx + boxW / 2, y + 33, { align: 'center' });
+
+        // Approval comments (APPROVED step only)
+        if (step === 'APPROVED' && entry?.comments) {
+          doc.setDrawColor(...BORDER);
+          doc.setLineWidth(0.3);
+          doc.line(bx + 4, y + 36, bx + boxW - 4, y + 36);
+          doc.setTextColor(...NAVY);
+          doc.setFontSize(5.5);
+          doc.setFont('helvetica', 'italic');
+          const commentText = `"${entry.comments}"`;
+          const wrapped = doc.splitTextToSize(commentText, boxW - 8);
+          doc.text(wrapped[0].substring(0, 28), bx + boxW / 2, y + 41, { align: 'center' });
+        }
+
+        // Arrow to next step
+        if (i < 3) {
+          const arrowX = bx + boxW + 1;
+          const midY   = y + boxH / 2;
+          doc.setDrawColor(...(done ? BLUE : BORDER));
+          doc.setLineWidth(0.6);
+          doc.line(arrowX, midY, arrowX + 3, midY);
+          doc.line(arrowX + 1.5, midY - 1.8, arrowX + 3, midY);
+          doc.line(arrowX + 1.5, midY + 1.8, arrowX + 3, midY);
+        }
+      });
+
+      y += boxH + 14;
+
+      // ── [7] Filing Declaration ────────────────────────────────────────────────
+      this.drawSectionHeader(doc, ml, y, cw, 'FILING DECLARATION');
+      y += 11;
+
+      const approvedStep = workflowSteps.find(s => s.stepName === 'APPROVED');
+      const filedStep    = workflowSteps.find(s => s.stepName === 'FILED');
+      const approver     = approvedStep?.actor?.name ?? 'Compliance Authority';
+      const filer        = filedStep?.actor?.name   ?? username;
+
+      // ── Declaration box — 56 mm so signatures sit fully inside ─────────────────
+      doc.setFillColor(...BLUE_BG);
+      doc.setDrawColor(...BLUE);
+      doc.setLineWidth(0.4);
+      doc.rect(ml, y, cw, 56, 'FD');
+      doc.setFillColor(...BLUE);
+      doc.rect(ml, y, 3, 56, 'F');
+
+      // Declaration text
+      doc.setTextColor(...DARK);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      const decText = [
+        `This document certifies that Report #${report.reportId} for the period ${report.period}`,
+        `under regulation ${report.template?.regulationCode ?? '—'} has been duly processed and officially filed.`,
+        `Filing Reference: ${filingRef}   |   Filed On: ${now}`,
+      ];
+      decText.forEach((line, i) => doc.text(line, ml + 8, y + 10 + i * 7));
+
+      // Divider
+      doc.setDrawColor(...BORDER);
+      doc.setLineWidth(0.3);
+      doc.line(ml + 8, y + 33, ml + cw - 5, y + 33);
+
+      // Signature columns
+      const decCol1 = ml + 10;
+      const decCol2 = ml + cw / 2 + 5;
+
+      doc.setTextColor(...GRAY); doc.setFontSize(6.5); doc.setFont('helvetica', 'normal');
+      doc.text('FILED BY',    decCol1, y + 40);
+      doc.setTextColor(...DARK); doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+      doc.text(filer,         decCol1, y + 47);
+      doc.setTextColor(...GRAY); doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+      doc.text('Reporting Officer', decCol1, y + 53);
+
+      doc.setTextColor(...GRAY); doc.setFontSize(6.5); doc.setFont('helvetica', 'normal');
+      doc.text('APPROVED BY', decCol2, y + 40);
+      doc.setTextColor(...DARK); doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+      doc.text(approver,      decCol2, y + 47);
+      doc.setTextColor(...GRAY); doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+      doc.text('REGTECH ADMIN', decCol2, y + 53);
+
+      // Column divider
+      doc.setDrawColor(...BORDER); doc.setLineWidth(0.3);
+      doc.line(ml + cw / 2, y + 35, ml + cw / 2, y + 55);
+
+      y += 64;   // 56 mm box + 8 mm gap
+
+      // ── [8] Report Compliance Summary ────────────────────────────────────────
+      this.drawSectionHeader(doc, ml, y, cw, 'REPORT COMPLIANCE SUMMARY');
+      y += 11;
+
+      const summaryBreached = metrics.filter(m => this.isMetricBreached(m)).length;
       autoTable(doc, {
         startY: y,
-        head: [['#', 'Field', 'Issue Description', 'Severity', 'Status', 'Resolution / Justification']],
-        body: exceptions.map((e, i) => {
-          // Extract readable justification from "Accepted Risk | Reason: {text}" format
-          const rawJust = e.justification ?? '';
-          const justMatch = rawJust.includes('Reason:') ? rawJust.split('Reason:')[1]?.trim() : rawJust;
-          return [
-            String(i + 1),
-            e.templateField?.fieldName || '—',
-            e.issue || '—',
-            e.severity || '—',
-            e.status || '—',
-            justMatch || (e.status === 'Resolved' ? 'Resolved — no notes' : 'Pending resolution'),
-          ];
-        }),
+        head:   [['Category', 'Total Records', 'Issues / Breaches', 'Resolved / OK']],
+        body: [
+          [
+            'Risk Metrics',
+            String(metrics.length),
+            summaryBreached > 0 ? `${summaryBreached} BREACH` : 'None',
+            `${metrics.length - summaryBreached} OK`,
+          ],
+          [
+            'Exception Records',
+            String(exceptions.length),
+            openExc > 0 ? `${openExc} Open` : 'None',
+            `${exceptions.length - openExc} Resolved`,
+          ],
+          [
+            'Data Quality Issues',
+            String(qualityIssues.length),
+            openQ > 0 ? `${openQ} Open` : 'None',
+            `${qualityIssues.length - openQ} Resolved`,
+          ],
+        ],
         margin:             { left: ml, right: mr },
-        headStyles:         { fillColor: [120, 53, 15], textColor: WHITE, fontStyle: 'bold', fontSize: 8, cellPadding: 3 },
-        bodyStyles:         { fontSize: 7.5, cellPadding: 2.5 },
-        alternateRowStyles: { fillColor: [255, 247, 237] },
-        tableLineColor:     [254, 215, 170],
-        tableLineWidth:     0.2,
+        headStyles:         { fillColor: NAVY, textColor: WHITE, fontStyle: 'bold', fontSize: 8, cellPadding: 3 },
+        bodyStyles:         { fontSize: 8, cellPadding: 3 },
+        alternateRowStyles: { fillColor: LIGHT_BG },
+        tableLineColor:     BORDER,
+        tableLineWidth:     0.3,
         columnStyles: {
-          0: { cellWidth: 8,  halign: 'center' },
-          1: { cellWidth: 28 },
-          3: { cellWidth: 22, halign: 'center' },
-          4: { cellWidth: 24, halign: 'center' },
-          5: { cellWidth: 'auto' },
+          0: { cellWidth: 55 },
+          1: { cellWidth: 35, halign: 'center' },
+          2: { cellWidth: 45, halign: 'center' },
+          3: { cellWidth: 45, halign: 'center' },
         },
         didParseCell: (data: any) => {
           if (data.section === 'body') {
-            if (data.column.index === 3) {
-              const sev = String(data.cell.raw);
-              if (sev === 'HIGH')   { data.cell.styles.textColor = [220, 38,  38]; data.cell.styles.fontStyle = 'bold'; }
-              if (sev === 'MEDIUM') { data.cell.styles.textColor = [234, 88,  12]; data.cell.styles.fontStyle = 'bold'; }
-              if (sev === 'LOW')    { data.cell.styles.textColor = [22,  163, 74]; data.cell.styles.fontStyle = 'bold'; }
+            const raw = String(data.cell.raw);
+            if (data.column.index === 2) {
+              data.cell.styles.fontStyle = 'bold';
+              if (raw.includes('BREACH') || raw.includes('Open')) data.cell.styles.textColor = RED;
+              else                                                 data.cell.styles.textColor = GREEN;
             }
-            if (data.column.index === 4) {
-              const st = String(data.cell.raw);
-              if (st === 'Resolved') { data.cell.styles.textColor = [22, 163, 74]; data.cell.styles.fontStyle = 'bold'; }
-              if (st === 'Open')     { data.cell.styles.textColor = [220, 38, 38]; }
+            if (data.column.index === 3) {
+              data.cell.styles.textColor = GREEN;
+              data.cell.styles.fontStyle = 'bold';
             }
           }
         },
       });
       y = ((doc as any).lastAutoTable?.finalY ?? y) + 10;
-    } else {
-      doc.setFillColor(255, 247, 237);
-      doc.rect(ml, y, cw, 14, 'F');
-      doc.setTextColor(...GRAY); doc.setFontSize(8.5); doc.setFont('helvetica', 'italic');
-      doc.text('No exception records at the time of filing.', ml + 5, y + 9);
-      y += 20;
-    }
 
-    // ── Data Quality section ──────────────────────────────────────────────────
-    if (y > ph - 60) { doc.addPage(); y = 15; }
-    this.drawSectionHeader(doc, ml, y, cw, 'DATA VALIDATION & QUALITY METRICS', [67, 56, 202]);
-    y += 11;
+      // ── [9] Workflow Audit Trail ──────────────────────────────────────────────
+      this.drawSectionHeader(doc, ml, y, cw, 'WORKFLOW AUDIT TRAIL');
+      y += 11;
 
-    // Quality summary strip
-    const openQ     = qualityIssues.filter(i => i.status === 'OPEN').length;
-    const resolvedQ = qualityIssues.filter(i => i.status === 'RESOLVED').length;
-    const waivedQ   = qualityIssues.filter(i => i.status === 'WAIVED').length;
+      const trailSteps  = ['DRAFT', 'UNDER_REVIEW', 'APPROVED', 'FILED'];
+      const trailLabels: Record<string, string> = {
+        DRAFT:        'Draft Created',
+        UNDER_REVIEW: 'Submitted for Review',
+        APPROVED:     'Approved',
+        FILED:        'Filed with Regulator',
+      };
 
-    doc.setFillColor(238, 242, 255);
-    doc.rect(ml, y, cw, 14, 'F');
-    doc.setDrawColor(199, 210, 254); doc.rect(ml, y, cw, 14, 'S');
-    const qStats: [string, string][] = [
-      ['Total Issues',    String(qualityIssues.length)],
-      ['Open',            String(openQ)],
-      ['Resolved',        String(resolvedQ)],
-      ['Waived',          String(waivedQ)],
-    ];
-    qStats.forEach(([label, val], i) => {
-      const qx = ml + 5 + i * (cw / 4);
-      doc.setTextColor(...GRAY); doc.setFontSize(6); doc.setFont('helvetica', 'normal');
-      doc.text(label.toUpperCase(), qx, y + 5);
-      doc.setTextColor(67, 56, 202); doc.setFontSize(10); doc.setFont('helvetica', 'bold');
-      doc.text(val, qx, y + 11.5);
-    });
-    y += 18;
-
-    if (qualityIssues.length > 0) {
       autoTable(doc, {
         startY: y,
-        head: [['#', 'Validation Rule', 'Issue Message', 'Severity', 'Status', 'Logged Date']],
-        body: qualityIssues.map((q, i) => [
-          String(i + 1),
-          (q.rule as any)?.ruleName || '—',
-          q.message || '—',
-          q.severity || '—',
-          q.status || '—',
-          q.loggedDate ? this.formatDate(q.loggedDate) : '—',
-        ]),
+        head:   [['#', 'Action', 'Actor', 'Role', 'Date', 'Comments']],
+        body:   trailSteps.map((step, i) => {
+          const entry = workflowSteps.find(w => w.stepName === step);
+          return [
+            String(i + 1),
+            trailLabels[step] ?? step,
+            entry?.actor?.name ?? '—',
+            (entry?.actor?.role ?? '—').replace(/_/g, ' '),
+            entry ? this.formatDateShort(entry.stepDate) : 'Pending',
+            entry?.comments ?? '—',
+          ];
+        }),
         margin:             { left: ml, right: mr },
-        headStyles:         { fillColor: [49, 46, 129], textColor: WHITE, fontStyle: 'bold', fontSize: 8, cellPadding: 3 },
+        headStyles:         { fillColor: NAVY, textColor: WHITE, fontStyle: 'bold', fontSize: 8, cellPadding: 2.5 },
         bodyStyles:         { fontSize: 7.5, cellPadding: 2.5 },
-        alternateRowStyles: { fillColor: [238, 242, 255] },
-        tableLineColor:     [199, 210, 254],
-        tableLineWidth:     0.2,
+        alternateRowStyles: { fillColor: LIGHT_BG },
+        tableLineColor:     BORDER,
+        tableLineWidth:     0.3,
         columnStyles: {
-          0: { cellWidth: 8,  halign: 'center' },
-          3: { cellWidth: 22, halign: 'center' },
-          4: { cellWidth: 24, halign: 'center' },
-          5: { cellWidth: 42 },
+          0: { cellWidth: 10, halign: 'center' },
+          1: { cellWidth: 44 },
+          2: { cellWidth: 28 },
+          3: { cellWidth: 36 },
+          4: { cellWidth: 28 },
         },
         didParseCell: (data: any) => {
-          if (data.section === 'body' && data.column.index === 3) {
-            const sev = String(data.cell.raw);
-            if (sev === 'HIGH')   data.cell.styles.textColor = [220, 38,  38];
-            if (sev === 'MEDIUM') data.cell.styles.textColor = [234, 88,  12];
-            if (sev === 'LOW')    data.cell.styles.textColor = [22,  163, 74];
+          if (data.section === 'body') {
+            const step  = trailSteps[data.row.index];
+            const done  = !!workflowSteps.find(w => w.stepName === step);
+            if (data.column.index === 1) {
+              data.cell.styles.fontStyle = done ? 'bold'   : 'normal';
+              data.cell.styles.textColor = done ? BLUE     : GRAY;
+            }
+            if (data.column.index === 4 && !done) {
+              data.cell.styles.textColor = AMBER;
+              data.cell.styles.fontStyle = 'italic';
+            }
+            if (data.column.index === 5 && String(data.cell.raw) !== '—') {
+              data.cell.styles.textColor = NAVY;
+              data.cell.styles.fontStyle = 'italic';
+            }
           }
         },
       });
-      y = ((doc as any).lastAutoTable?.finalY ?? y) + 10;
-    } else {
-      doc.setFillColor(238, 242, 255);
-      doc.rect(ml, y, cw, 14, 'F');
-      doc.setTextColor(...GRAY); doc.setFontSize(8.5); doc.setFont('helvetica', 'italic');
-      doc.text('No data quality issues recorded for this reporting period.', ml + 5, y + 9);
-      y += 20;
-    }
+      y = ((doc as any).lastAutoTable?.finalY ?? y) + 8;
 
-    // ─────────────────────────── PAGE 4 : Audit Trail + Declaration ──────────
-    doc.addPage();
-    y = 15;
-
-    // ── Audit trail ───────────────────────────────────────────────────────────
-    this.drawSectionHeader(doc, ml, y, cw, 'FILING AUDIT TRAIL', [49, 46, 129]);
-    y += 11;
-
-    if (auditLogs.length > 0) {
-      autoTable(doc, {
-        startY: y,
-        head: [['Timestamp', 'User', 'Role', 'Action', 'Details / Metadata']],
-        body: auditLogs.map(log => [
-          log.timestamp ? this.formatDate(log.timestamp) : '—',
-          log.user?.name || 'System',
-          log.user?.role || '—',
-          this.auditActionLabel(log.action),
-          log.metadata || '—',
-        ]),
-        margin:             { left: ml, right: mr },
-        headStyles:         { fillColor: [49, 46, 129], textColor: WHITE, fontStyle: 'bold', fontSize: 8.5, cellPadding: 3 },
-        bodyStyles:         { fontSize: 8, cellPadding: 2.8 },
-        alternateRowStyles: { fillColor: [238, 242, 255] },
-        tableLineColor:     [199, 210, 254],
-        tableLineWidth:     0.2,
-        columnStyles: {
-          0: { cellWidth: 38 },
-          1: { cellWidth: 28 },
-          2: { cellWidth: 30 },
-          3: { cellWidth: 38 },
-          4: { cellWidth: 'auto' },
-        },
-      });
-      y = ((doc as any).lastAutoTable?.finalY ?? y) + 10;
-    } else {
-      doc.setFillColor(238, 242, 255);
-      doc.rect(ml, y, cw, 14, 'F');
-      doc.setTextColor(...GRAY); doc.setFontSize(8.5); doc.setFont('helvetica', 'italic');
-      doc.text('No audit trail records available for this report.', ml + 5, y + 9);
-      y += 20;
-    }
-
-    // ── Signature & Footer block ───────────────────────────────────────────────
-    if (y > ph - 72) { doc.addPage(); y = 15; }
-
-    // Find approval authority from audit logs
-    const approverLog = auditLogs.find(l =>
-      l.action === 'APPROVE_REPORT_WITH_COMMENTS' || l.action === 'WORKFLOW_ADVANCE'
-    );
-    const approver = approverLog?.user?.name || 'Compliance Officer';
-
-    doc.setFillColor(br, bgc, bb);
-    doc.rect(ml, y, cw, 58, 'F');
-    doc.setFillColor(sr, sg, sb);
-    doc.rect(ml, y, 3, 58, 'F');
-    doc.setDrawColor(...BORDER); doc.setLineWidth(0.2);
-    doc.rect(ml, y, cw, 58, 'S');
-
-    doc.setTextColor(sr, sg, sb); doc.setFontSize(10); doc.setFont('helvetica', 'bold');
-    doc.text('FILING DECLARATION', ml + 8, y + 9);
-
-    doc.setFontSize(8.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(55, 65, 81);
-    const decLines = [
-      `This certifies that Report #${report.reportId} for period ${report.period} under`,
-      `regulation ${report.template?.regulationCode || '—'} has been officially filed with`,
-      `the regulatory authority via RegReportX v2.0 on ${nowShort}.`,
-      `Compliance Score: ${score}/100 (${scoreDet.label})  |  Confidentiality: CONFIDENTIAL`,
-    ];
-    decLines.forEach((line, i) => doc.text(line, ml + 8, y + 19 + i * 6.5));
-
-    // Signature columns
-    const sigCols = [
-      { label: 'Generated By',       name: username || 'Reporting Officer',   role: 'Reporting Officer' },
-      { label: 'Approval Authority',  name: approver,                          role: 'Compliance/Risk Officer' },
-      { label: 'Confidentiality',     name: 'CONFIDENTIAL',                    role: 'For Regulatory Use Only' },
-    ];
-    const sigW = cw / 3;
-    sigCols.forEach((sig, i) => {
-      const sx = ml + 8 + i * sigW;
-      doc.setDrawColor(209, 213, 219); doc.setLineWidth(0.3);
-      doc.line(sx, y + 46, sx + sigW - 10, y + 46);
-      doc.setFontSize(6); doc.setFont('helvetica', 'normal'); doc.setTextColor(...GRAY);
-      doc.text(sig.label.toUpperCase(), sx, y + 50);
-      doc.setFontSize(8.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(sr, sg, sb);
-      doc.text((sig.name).substring(0, 22), sx, y + 55);
-      doc.setFontSize(6.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(107, 114, 128);
-      doc.text(sig.role, sx, y + 59.5);
-    });
-    y += 64;
-
-    // ─────────────────────────────────── FOOTERS ─────────────────────────────
-    const totalPages = doc.getNumberOfPages();
-    for (let p = 1; p <= totalPages; p++) {
-      doc.setPage(p);
-      doc.setFillColor(...DARK);
-      doc.rect(0, ph - 10, pw, 10, 'F');
-      doc.setFillColor(...TEAL);
-      doc.rect(0, ph - 10, pw, 1.5, 'F');
-      doc.setTextColor(156, 163, 175); doc.setFontSize(7); doc.setFont('helvetica', 'normal');
-      doc.text(
-        `RegReportX v2.0  |  CONFIDENTIAL — Regulatory Use Only  |  ${filingRef}  |  ${nowShort}`,
-        ml, ph - 3.5
-      );
-      doc.text(`Page ${p} of ${totalPages}`, pw - mr, ph - 3.5, { align: 'right' });
-
-      // Page label
+      // ── Page footers ──────────────────────────────────────────────────────────
+      const totalPages = doc.getNumberOfPages();
       const pageLabels: Record<number, string> = {
-        1: 'ADMINISTRATIVE SUMMARY',
-        2: 'RISK METRICS',
-        3: 'EXCEPTIONS & DATA QUALITY',
-        4: 'AUDIT TRAIL & DECLARATION',
+        1: 'RISK METRICS',
+        2: 'EXCEPTIONS & DATA QUALITY',
+        3: 'WORKFLOW & DECLARATION',
       };
-      const lbl = pageLabels[p] ?? `SECTION ${p}`;
-      doc.setTextColor(...TEAL); doc.setFontSize(6); doc.setFont('helvetica', 'bold');
-      doc.text(lbl, pw / 2, ph - 3.5, { align: 'center' });
-    }
 
-    // ── Save & return filename ─────────────────────────────────────────────────
-    const filename = `RegReport_${report.reportId}_${report.period}_FILED.pdf`;
-    doc.save(filename);
-    return filename;
+      for (let p = 1; p <= totalPages; p++) {
+        doc.setPage(p);
+        doc.setFillColor(...NAVY);
+        doc.rect(0, ph - 9, pw, 9, 'F');
+
+        doc.setTextColor(179, 210, 240);
+        doc.setFontSize(6.5);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`RegReportX v2.0  |  ${filingRef}  |  CONFIDENTIAL`, ml, ph - 3.5);
+        doc.text(`Page ${p} of ${totalPages}`, pw - mr, ph - 3.5, { align: 'right' });
+
+        doc.setTextColor(204, 224, 245);
+        doc.setFontSize(6);
+        doc.setFont('helvetica', 'bold');
+        doc.text(pageLabels[p] ?? `SECTION ${p}`, pw / 2, ph - 3.5, { align: 'center' });
+      }
+
+      // ── Save ──────────────────────────────────────────────────────────────────
+      const filename = `RegReport_${report.reportId}_${report.period}_FILED.pdf`;
+      doc.save(filename);
+      return filename;
 
     } catch (e) {
-      console.error('[PDF] buildPDF error:', e);
+      console.error('[PDF] Generation failed:', e);
       throw e;
     }
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  //  Drawing utilities
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  private drawSectionHeader(
-    doc: jsPDF,
-    x: number, y: number, w: number,
-    title: string,
-    color: [number, number, number],
-  ): void {
-    doc.setFillColor(...color);
-    doc.rect(x, y, w, 9, 'F');
-    doc.setTextColor(...WHITE);
-    doc.setFontSize(9); doc.setFont('helvetica', 'bold');
-    doc.text(title, x + 5, y + 6.2);
   }
 }

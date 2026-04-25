@@ -436,7 +436,7 @@ export class AdminComponent implements OnInit, OnDestroy, AfterViewInit {
     this.approvingReportId = id;
     this.showApproveModal = false;
     
-    this.reportService.approveReport(id, 1, comments).pipe(
+    this.reportService.approveReport(id, comments).pipe(
       finalize(() => this.run(() => {
         this.approvingReportId = null;
         this.approveReportId = null;

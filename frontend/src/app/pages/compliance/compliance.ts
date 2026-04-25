@@ -75,6 +75,10 @@ export class ComplianceComponent implements OnInit, OnDestroy {
   exceptionSeverityChart: any;
   exceptionReportChart: any;
 
+  // Per-report exception generation state
+  generatingExceptionIds  = new Set<number>();   // currently in-flight
+  generatedExceptionIds   = new Set<number>();   // completed at least once — blocks re-click
+
   // UI State
   loadingCount = 0;
   get isLoading(): boolean { return this.loadingCount > 0; }
@@ -109,7 +113,6 @@ export class ComplianceComponent implements OnInit, OnDestroy {
       if (this.isLoading) {
         this.loadingCount = 0;
         this.cdr.detectChanges();
-        console.warn('Loading safety net triggered: forced counter reset');
       }
     }, 5000);
 
@@ -775,12 +778,18 @@ export class ComplianceComponent implements OnInit, OnDestroy {
   }
 
   generateReportExceptions(reportId: number): void {
+    if (this.generatingExceptionIds.has(reportId) || this.generatedExceptionIds.has(reportId)) return;
+    this.generatingExceptionIds.add(reportId);
     this.startLoading();
     this.exceptionService.generateExceptions(reportId).pipe(
-      finalize(() => this.stopLoading())
+      finalize(() => {
+        this.generatingExceptionIds.delete(reportId);
+        this.stopLoading();
+      })
     ).subscribe({
       next: (res) => {
-        this.showNotification(`Generated ${res.count} exceptions for report`, 'success');
+        this.generatedExceptionIds.add(reportId);
+        this.showNotification(`Generated ${res.count} exceptions for report #${reportId}`, 'success');
         this.loadOpenExceptions();
       },
       error: () => {

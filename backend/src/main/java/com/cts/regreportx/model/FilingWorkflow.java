@@ -41,4 +41,7 @@ public class FilingWorkflow {
 
     @Column(name = "Status")
     private String status;
+
+    @Column(name = "Comments")
+    private String comments;
 }

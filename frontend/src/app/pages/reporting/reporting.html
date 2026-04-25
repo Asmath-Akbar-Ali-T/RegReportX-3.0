@@ -78,10 +78,10 @@
           </div>
         </div>
         <div class="ro-stat-card ro-stat-indigo">
-          <div class="ro-stat-icon"><span class="material-icons">note_add</span></div>
+          <div class="ro-stat-icon"><span class="material-icons">rate_review</span></div>
           <div class="ro-stat-body">
-            <span class="ro-stat-value">{{ stats.generated }}</span>
-            <span class="ro-stat-label">Generated</span>
+            <span class="ro-stat-value">{{ stats.underReview }}</span>
+            <span class="ro-stat-label">Under Review</span>
           </div>
         </div>
         <div class="ro-stat-card ro-stat-green">
@@ -97,34 +97,6 @@
             <span class="ro-stat-value">{{ stats.filed }}</span>
             <span class="ro-stat-label">Filed</span>
           </div>
-        </div>
-      </div>
-
-      <!-- Quick Action Cards -->
-       
-      <div class="ro-actions-grid">
-        <div id="card-generate" class="ro-action-card ro-action-blue" (click)="navigate('generate')">
-          <div class="ro-action-glow"></div>
-          <div class="ro-action-icon"><span class="material-icons">note_add</span></div>
-          <h3>Generate Report</h3>
-          <p>Create a new regulatory report from a template and reporting period.</p>
-          <div class="ro-action-arrow"><span class="material-icons">arrow_forward</span></div>
-        </div>
-
-        <div id="card-view" class="ro-action-card ro-action-indigo" (click)="navigate('list')">
-          <div class="ro-action-glow"></div>
-          <div class="ro-action-icon"><span class="material-icons">list_alt</span></div>
-          <h3>View All Reports</h3>
-          <p>Browse, search, and monitor every report across all lifecycle stages.</p>
-          <div class="ro-action-arrow"><span class="material-icons">arrow_forward</span></div>
-        </div>
-
-        <div id="card-file" class="ro-action-card ro-action-teal" (click)="navigate('file')">
-          <div class="ro-action-glow"></div>
-          <div class="ro-action-icon"><span class="material-icons">publish</span></div>
-          <h3>File Reports</h3>
-          <p>Officially submit approved reports to the regulatory authority.</p>
-          <div class="ro-action-arrow"><span class="material-icons">arrow_forward</span></div>
         </div>
       </div>
 

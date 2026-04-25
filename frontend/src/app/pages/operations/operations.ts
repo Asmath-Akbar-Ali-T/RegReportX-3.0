@@ -50,9 +50,8 @@ export class OperationsComponent implements OnInit, AfterViewInit, OnDestroy {
   rawRecords: RawRecord[] = [];
   selectedBatchIdForRaw: number | null = null;
 
-  // Raw Records Conversion
-  convertingBatchId: number | null = null;
-  isConvertingRawRecords = false;
+  // Raw Records Conversion — Set tracks each batch independently
+  convertingBatchIds = new Set<number>();
   // Maps batchId → true if raw records already exist on the server
   batchConvertedMap: Map<number, boolean> = new Map();
   checkingConversionStatus = false;
@@ -313,16 +312,14 @@ export class OperationsComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   loadRawRecordsForConversion(batchId: number): void {
-    if (this.isConvertingRawRecords) return; // guard double-click
-    this.convertingBatchId = batchId;
-    this.isConvertingRawRecords = true;
+    if (this.convertingBatchIds.has(batchId)) return; // guard double-click on same batch
+    this.convertingBatchIds.add(batchId);
     this.cdr.detectChanges();
 
     this.operationsService.loadRawRecords(batchId).pipe(
       finalize(() => {
         this.run(() => {
-          this.isConvertingRawRecords = false;
-          this.convertingBatchId = null;
+          this.convertingBatchIds.delete(batchId);
         });
       })
     ).subscribe({

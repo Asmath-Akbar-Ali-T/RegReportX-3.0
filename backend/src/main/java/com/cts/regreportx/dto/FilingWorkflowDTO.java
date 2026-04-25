@@ -15,4 +15,5 @@ public class FilingWorkflowDTO {
     private UserDTO actor;
     private LocalDateTime stepDate;
     private String status;
+    private String comments;
 }

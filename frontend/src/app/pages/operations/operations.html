@@ -293,12 +293,12 @@
                             [class.primary]="!isBatchConverted(batch) && !checkingConversionStatus"
                             [class.outline]="checkingConversionStatus && !isBatchConverted(batch)"
                             (click)="loadRawRecordsForConversion(batch.batchId)"
-                            [disabled]="isBatchConverted(batch) || isConvertingRawRecords || checkingConversionStatus">
+                            [disabled]="isBatchConverted(batch) || convertingBatchIds.has(batch.batchId) || checkingConversionStatus">
                       @if (checkingConversionStatus) {
                         <span class="material-icons" style="font-size:15px;animation:spin 1s linear infinite">sync</span> Checking…
                       } @else if (isBatchConverted(batch)) {
                         <span class="material-icons" style="font-size:15px">check_circle</span> Converted
-                      } @else if (convertingBatchId === batch.batchId) {
+                      } @else if (convertingBatchIds.has(batch.batchId)) {
                         Converting...
                       } @else {
                         Convert

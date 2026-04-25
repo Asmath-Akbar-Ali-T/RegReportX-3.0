@@ -3,8 +3,8 @@ import { ValidationRule } from './validation.model';
 
 export interface DataQualityIssue {
   issueId: number;
-  batch: RawDataBatch;
-  rule: ValidationRule;
+  batch?: RawDataBatch;
+  rule?: ValidationRule;
   recordId: string;
   message: string;
   severity: string;

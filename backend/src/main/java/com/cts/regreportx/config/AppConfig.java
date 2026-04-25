@@ -3,6 +3,8 @@ package com.cts.regreportx.config;
 import com.cts.regreportx.model.User;
 import com.cts.regreportx.repository.UserRepository;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -10,6 +12,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Configuration
 public class AppConfig {
+
+    private static final Logger logger = LoggerFactory.getLogger(AppConfig.class);
 
     @Bean
     public CommandLineRunner initDatabase(UserRepository userRepository, PasswordEncoder passwordEncoder) {
@@ -65,7 +69,7 @@ public class AppConfig {
                 asmath.setCreatedAt(java.time.LocalDateTime.now());
                 userRepository.save(asmath);
 
-                System.out.println("Inserted 5 default actors (Dilip, Kishore, Nandhana, Niranjana, Asmath).");
+                logger.info("Inserted 5 default actors (Dilip, Kishore, Nandhana, Niranjana, Asmath).");
             }
         };
     }

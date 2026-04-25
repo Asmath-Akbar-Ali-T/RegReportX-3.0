@@ -18,14 +18,13 @@ import com.cts.regreportx.model.RiskMetric;
 import com.cts.regreportx.exception.ResourceNotFoundException;
 import com.cts.regreportx.exception.ValidationException;
 import com.cts.regreportx.dto.ExceptionResolveRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -33,6 +32,8 @@ import java.util.Optional;
 
 @Service
 public class ReportingService {
+
+    private static final Logger logger = LoggerFactory.getLogger(ReportingService.class);
 
     private final RegReportRepository reportRepository;
     private final FilingWorkflowRepository workflowRepository;
@@ -79,40 +80,30 @@ public class ReportingService {
         FilingWorkflow workflow = new FilingWorkflow();
         workflow.setReport(report);
         workflow.setStepName("DRAFT");
-        workflow.setActor(userRepository.getReferenceById(1L)); // System user
+        workflow.setActor(getCurrentUser());
         workflow.setStepDate(LocalDateTime.now());
         workflow.setStatus("COMPLETED");
         workflowRepository.save(workflow);
 
-
-        auditService.logAction("GENERATE_REPORT", "TemplateID: " + templateId,
-                "Report generated ID: " + report.getReportId());
-
         return report;
     }
 
     @Transactional
-    public RegReport submitReportForReview(Integer reportId, Integer actorId) {
-        return advanceWorkflow(reportId, actorId, "DRAFT", "UNDER_REVIEW");
+    public RegReport submitReportForReview(Integer reportId) {
+        return advanceWorkflow(reportId, "DRAFT", "UNDER_REVIEW", null);
     }
 
     @Transactional
-    public RegReport approveReport(Integer reportId, Integer actorId, String comments) {
-        RegReport report = advanceWorkflow(reportId, actorId, "UNDER_REVIEW", "APPROVED");
-        if (comments != null && !comments.trim().isEmpty()) {
-            auditService.logAction("APPROVE_REPORT_WITH_COMMENTS", "ReportID: " + reportId,
-                    "Comments: " + comments);
-        }
-        return report;
+    public RegReport approveReport(Integer reportId, String comments) {
+        return advanceWorkflow(reportId, "UNDER_REVIEW", "APPROVED", comments);
     }
 
     @Transactional
-    public RegReport fileReport(Integer reportId, Integer actorId) {
-        return advanceWorkflow(reportId, actorId, "APPROVED", "FILED");
+    public RegReport fileReport(Integer reportId) {
+        return advanceWorkflow(reportId, "APPROVED", "FILED", null);
     }
 
-    private RegReport advanceWorkflow(Integer reportId, Integer actorId, String expectedCurrentStatus,
-            String nextStatus) {
+    private RegReport advanceWorkflow(Integer reportId, String expectedCurrentStatus, String nextStatus, String comments) {
         RegReport report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new ResourceNotFoundException("Report not found: " + reportId));
 
@@ -127,15 +118,30 @@ public class ReportingService {
         FilingWorkflow workflow = new FilingWorkflow();
         workflow.setReport(report);
         workflow.setStepName(nextStatus);
-        workflow.setActor(userRepository.getReferenceById(actorId.longValue()));
+        workflow.setActor(getCurrentUser());
         workflow.setStepDate(LocalDateTime.now());
         workflow.setStatus("COMPLETED");
+        if (comments != null && !comments.trim().isEmpty()) {
+            workflow.setComments(comments);
+        }
         workflowRepository.save(workflow);
 
         auditService.logAction("WORKFLOW_ADVANCE", "ReportID: " + reportId,
                 "Status changed from " + expectedCurrentStatus + " to " + nextStatus);
 
         return report;
+    }
+
+    private User getCurrentUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
+            return userRepository.findByUsername(auth.getName()).orElse(null);
+        }
+        return null;
+    }
+
+    public List<FilingWorkflow> getWorkflowByReportId(Integer reportId) {
+        return workflowRepository.findByReport_ReportIdOrderByStepDateAsc(reportId);
     }
 
     public Optional<RegReport> getReport(Integer reportId) {
@@ -199,6 +205,7 @@ public class ReportingService {
                 userOpt.ifPresent(user -> log.setCorrectedByUser(user));
             }
         } catch (Exception e) {
+            logger.warn("Could not resolve current user for correction log on exception {}: {}", exceptionId, e.getMessage());
         }
 
         correctionLogRepository.save(log);

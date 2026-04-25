@@ -4,11 +4,11 @@ import { TemplateField } from './template.model';
 
 export interface ExceptionRecord {
   exceptionId: number;
-  report: RegReport;
-  templateField: TemplateField;
+  report?: RegReport;
+  templateField?: TemplateField;
   issue: string;
   severity: string;
-  assignedUser: User;
+  assignedUser?: User;
   status: string;
   justification?: string;
 }

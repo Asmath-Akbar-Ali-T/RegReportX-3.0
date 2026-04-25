@@ -7,6 +7,8 @@ import com.cts.regreportx.repository.ValidationRuleRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -17,6 +19,8 @@ import java.util.List;
 
 @Service
 public class ValidationService {
+
+    private static final Logger logger = LoggerFactory.getLogger(ValidationService.class);
 
     private final RawRecordService rawRecordService;
     private final RawDataBatchRepository batchRepository;
@@ -47,7 +51,8 @@ public class ValidationService {
 
         for (RawDataBatch batch : batches) {
             List<RawRecord> records = rawRecordService.getRecordsByBatch(batch.getBatchId());
-            Integer sourceId = batch.getSource() != null ? batch.getSource().getSourceId() : null;
+            int sourceId = (batch.getSource() != null && batch.getSource().getSourceId() != null)
+                    ? batch.getSource().getSourceId() : -1;
 
             try {
                 for (RawRecord record : records) {
@@ -103,7 +108,7 @@ public class ValidationService {
                 auditService.logAction("RUN_VALIDATION_ON_RAW", sourceName + " (Batch: " + batch.getBatchId() + ")");
                 
             } catch (Exception e) {
-                e.printStackTrace();
+                logger.error("Validation failed for batch {}: {}", batch.getBatchId(), e.getMessage(), e);
             }
         }
 

@@ -440,12 +440,17 @@
                 </td>
                 <td>
                   <div class="action-group">
-                    <button class="action-btn small outline" (click)="generateReportExceptions(report.reportId!)">
-                      <span class="material-icons">auto_awesome</span>
-                      Generate Exceptions
+                    <button class="action-btn small outline"
+                      (click)="generateReportExceptions(report.reportId!)"
+                      [disabled]="generatingExceptionIds.has(report.reportId!) || generatedExceptionIds.has(report.reportId!)">
+                      <span class="material-icons">
+                        {{ generatedExceptionIds.has(report.reportId!) ? 'check_circle' : 'auto_awesome' }}
+                      </span>
+                      {{ generatingExceptionIds.has(report.reportId!) ? 'Generating...' : generatedExceptionIds.has(report.reportId!) ? 'Exceptions Done' : 'Generate Exceptions' }}
                     </button>
-                    <!-- Submit is gated by ts logic, not disabled -->
-                    <button class="action-btn small primary" (click)="submitForApproval(report.reportId!)">
+                    <button class="action-btn small primary"
+                      (click)="submitForApproval(report.reportId!)"
+                      [disabled]="!generatedExceptionIds.has(report.reportId!)">
                       <span class="material-icons">send</span>
                       Submit
                     </button>

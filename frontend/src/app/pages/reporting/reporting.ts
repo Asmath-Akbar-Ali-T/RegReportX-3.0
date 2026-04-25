@@ -64,7 +64,7 @@ export class ReportingComponent implements OnInit {
   private toastCounter = 0;
 
   // Stats
-  stats = { total: 0, generated: 0, approved: 0, filed: 0 };
+  stats = { total: 0, underReview: 0, approved: 0, filed: 0 };
 
   // Audit
   auditLogs: AuditLog[] = [];
@@ -167,7 +167,7 @@ export class ReportingComponent implements OnInit {
 
   computeStats(reports: RegReport[]): void {
     this.stats.total = reports.length;
-    this.stats.generated = reports.filter(r => r.status === 'GENERATED').length;
+    this.stats.underReview = reports.filter(r => r.status === 'UNDER_REVIEW').length;
     this.stats.approved = reports.filter(r => r.status === 'APPROVED').length;
     this.stats.filed = reports.filter(r => r.status === 'FILED').length;
   }
