@@ -32,7 +32,7 @@ export const complianceGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const router = inject(Router);
 
-  if (authService.hasAnyRole('COMPLIANCE_ANALYST', 'REGTECH_ADMIN')) {
+  if (authService.hasAnyRole('COMPLIANCE_ANALYST')) {
     return true;
   }
   if (!authService.isAuthenticated()) {
@@ -47,7 +47,7 @@ export const riskGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const router = inject(Router);
 
-  if (authService.hasAnyRole('RISK_ANALYST', 'REGTECH_ADMIN')) {
+  if (authService.hasAnyRole('RISK_ANALYST')) {
     return true;
   }
   if (!authService.isAuthenticated()) {
@@ -62,7 +62,7 @@ export const reportingGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const router = inject(Router);
 
-  if (authService.hasAnyRole('REPORTING_OFFICER', 'REGTECH_ADMIN')) {
+  if (authService.hasAnyRole('REPORTING_OFFICER')) {
     return true;
   }
   if (!authService.isAuthenticated()) {
@@ -77,7 +77,7 @@ export const operationsGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const router = inject(Router);
 
-  if (authService.hasAnyRole('OPERATIONS_OFFICER', 'REGTECH_ADMIN')) {
+  if (authService.hasAnyRole('OPERATIONS_OFFICER')) {
     return true;
   }
   if (!authService.isAuthenticated()) {
